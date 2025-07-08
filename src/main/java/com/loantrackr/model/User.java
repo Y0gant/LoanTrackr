@@ -55,6 +55,12 @@ public class User {
     @Column(name = "last_login")
     private LocalDateTime lastLogin;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "is_permanently_deleted", nullable = false)
+    private boolean isPermanentlyDeleted = false;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
