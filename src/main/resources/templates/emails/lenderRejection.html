@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lender Application Rejected</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            border: 1px solid #ddd;
+            padding: 30px;
+            border-radius: 8px;
+            background-color: #fff8f8;
+        }
+
+        .header {
+            text-align: center;
+            color: #c0392b;
+        }
+
+        .reason {
+            background-color: #fbeaea;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #e0b4b4;
+            margin-top: 15px;
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #888;
+            text-align: center;
+        }
+
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2 class="header">Lender Application Rejected</h2>
+
+    <p>Dear <strong>{{organizationName}}</strong>,</p>
+
+    <p>We regret to inform you that your request to onboard as a verified lender on <strong>LoanTrackr</strong> has been
+        <strong>rejected</strong> after careful review by our compliance team.</p>
+
+    <div class="reason">
+        <p><strong>Reason for Rejection:</strong></p>
+        <p>{{rejectionReason}}</p>
+    </div>
+
+    <p>You are welcome to revise your application and reapply at any time. Please ensure that all submitted documents
+        are up-to-date, clear, and aligned with the regulatory requirements for lending institutions.</p>
+
+    <p class="footer">If you believe this was an error or need clarification, please contact our support team at <a
+            href="mailto:support@loantrackr.com">support@loantrackr.com</a>.</p>
+
+    <p class="footer">– The LoanTrackr Team</p>
+</div>
+</body>
+</html>

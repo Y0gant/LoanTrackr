@@ -47,3 +47,9 @@ springdoc:
     show-common-extensions: true
     default-model-expand-depth: 2
     default-models-expand-depth: 2
+file:
+  upload-dir: uploads
+mail:
+  from:
+    email: no-reply@loantrackr.com
+    name: LoanTrackr Team
