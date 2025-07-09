@@ -1,16 +1,22 @@
 package com.loantrackr.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.OneToOne;
+import jakarta.persistence.*;
+import lombok.*;
 
 @Entity
+@Getter
+@Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class LenderProfile {
     @Id
     private Long id;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
+    @MapsId //LenderProfile.id == user.id
     private User user;
+
 
     private String gstin;
     private String rbiLicenseNumber;

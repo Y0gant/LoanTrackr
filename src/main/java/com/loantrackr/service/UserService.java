@@ -4,9 +4,7 @@ import com.loantrackr.dto.request.RegisterUser;
 import com.loantrackr.dto.request.UpdateUserRequest;
 import com.loantrackr.enums.AuthProvider;
 import com.loantrackr.enums.Role;
-import com.loantrackr.exception.InactiveUserException;
-import com.loantrackr.exception.UserNotFoundException;
-import com.loantrackr.exception.UserPermanentlyDeletedException;
+import com.loantrackr.exception.*;
 import com.loantrackr.model.User;
 import com.loantrackr.repository.UserRepository;
 import lombok.AllArgsConstructor;
@@ -17,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.EnumSet;
 import java.util.Optional;
 
 @Slf4j
@@ -100,6 +99,8 @@ public class UserService {
                     return new UserNotFoundException("User not found with ID: " + id);
                 });
         user.setActive(false);
+        user.setEmailVerified(false);
+        user.setVerified(false);
         user.setDeletedAt(LocalDateTime.now());
         userRepository.save(user);
         log.warn("Soft-deleted user. ID: {}", id);
@@ -186,6 +187,30 @@ public class UserService {
         return false;
     }
 
+    public boolean isVerified(Long id) {
+        return getUserByID(id)
+                .orElseThrow(() -> {
+                    log.warn("isVerified check failed. User not found. ID: {}", id);
+                    return new UserNotFoundException("User not found with ID: " + id);
+                }).isVerified();
+    }
+
+    @Transactional
+    public boolean markUserVerified(Long id) {
+        User user = getUserByID(id).orElseThrow(() -> {
+            log.warn("Mark verified failed. User not found. ID: {}", id);
+            return new UserNotFoundException("User not found with ID: " + id);
+        });
+
+        validateActiveAndNotDeleted(user);
+
+        user.setVerified(true);
+        userRepository.save(user);
+        log.info("User marked as verified. ID: {}", id);
+        return true;
+    }
+
+
     @Transactional
     public boolean activateUser(Long id) {
         User user = getUserByID(id)
@@ -230,6 +255,9 @@ public class UserService {
         return userRepository.existsByUsername(userName);
     }
 
+    public boolean existsByRole(Role role) {
+        return userRepository.existsByRole(role);
+    }
 
     // Helpers
 
@@ -244,10 +272,36 @@ public class UserService {
         }
     }
 
-    //TODO complete authenticate
-
     public Optional<User> authenticate(String identifier, String password) {
         log.info("Authentication attempt for identifier: {}", identifier);
-        return Optional.empty(); // implement later
+
+        Optional<User> optionalUser = userRepository.findUserByUsernameOrEmail(identifier, identifier);
+
+        if (optionalUser.isEmpty()) {
+            log.warn("Authentication failed. No user found with identifier: {}", identifier);
+            throw new UserNotFoundException("Invalid username/email or password.");
+        }
+
+        User user = optionalUser.get();
+
+        validateActiveAndNotDeleted(user);
+
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            log.warn("Authentication failed. Invalid password for user ID: {}", user.getId());
+            throw new InvalidCredentialsException("Invalid username/email or password.");
+        }
+
+        log.info("Authentication successful for user ID: {}", user.getId());
+        return Optional.of(user);
     }
+
+
+    public void validatePrivilegedAccess(User user) {
+        if (EnumSet.of(Role.LENDER, Role.SYSTEM_ADMIN, Role.LOAN_MANAGER, Role.LOAN_OFFICER).contains(user.getRole())
+                && !user.isVerified()) {
+            throw new UnauthorizedException("Privileged account is not verified yet.");
+        }
+    }
+
+
 }

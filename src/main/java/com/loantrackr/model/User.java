@@ -29,6 +29,9 @@ public class User {
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
+    @Column(name = "is_verified", nullable = false)
+    private boolean isVerified = false;
+
     @Column(name = "is_email_verified", nullable = false)
     private boolean isEmailVerified = false;
 
