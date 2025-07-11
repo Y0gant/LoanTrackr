@@ -1,5 +1,6 @@
 package com.loantrackr.service;
 
+import com.loantrackr.dto.request.LoginRequest;
 import com.loantrackr.dto.request.RegisterUser;
 import com.loantrackr.dto.request.UpdateUserRequest;
 import com.loantrackr.enums.AuthProvider;
@@ -7,15 +8,19 @@ import com.loantrackr.enums.Role;
 import com.loantrackr.exception.*;
 import com.loantrackr.model.User;
 import com.loantrackr.repository.UserRepository;
+import com.loantrackr.security.jwt.JwtUtil;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -26,6 +31,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final ModelMapper modelMapper;
     private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtils;
 
     //Core CRUD Ops
 
@@ -80,6 +86,9 @@ public class UserService {
         }
 
         if (userRequest.getEmail() != null && !userRequest.getEmail().isBlank()) {
+            if (!user.getEmail().equals(userRequest.getEmail())) {
+                user.setEmailVerified(false);
+            }
             user.setEmail(userRequest.getEmail());
         }
 
@@ -297,11 +306,25 @@ public class UserService {
 
 
     public void validatePrivilegedAccess(User user) {
-        if (EnumSet.of(Role.LENDER, Role.SYSTEM_ADMIN, Role.LOAN_MANAGER, Role.LOAN_OFFICER).contains(user.getRole())
+        if (EnumSet.of(Role.LENDER, Role.SYSTEM_ADMIN, Role.LOAN_MANAGER).contains(user.getRole())
                 && !user.isVerified()) {
             throw new UnauthorizedException("Privileged account is not verified yet.");
         }
     }
 
 
+    public String generateJwtForLogin(LoginRequest loginUser) {
+        Optional<User> user = userRepository.findUserByUsernameOrEmail(loginUser.getIdentifier(), loginUser.getIdentifier());
+        if (user.isEmpty()) {
+            throw new UsernameNotFoundException("User not found: " + loginUser.getIdentifier());
+        }
+        User user1 = user.get();
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("id", user1.getId());
+        claims.put("email", user1.getEmail());
+        claims.put("isVerified", user1.isVerified());
+        claims.put("isEmailVerified", user1.isEmailVerified());
+        claims.put("roles", user1.getRole());
+        return jwtUtils.generateToken(user1.getUsername(), claims);
+    }
 }
