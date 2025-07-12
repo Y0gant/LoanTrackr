@@ -9,5 +9,5 @@ import java.util.List;
 public interface LenderOnboardingRepository extends JpaRepository<LenderOnboarding, Long> {
     List<LenderOnboarding> findAllByStatus(RequestStatus status);
 
-    List<LenderOnboarding> findAllByReviewedTrue(boolean reviewed);
+    List<LenderOnboarding> findAllByReviewedTrue();
 }
