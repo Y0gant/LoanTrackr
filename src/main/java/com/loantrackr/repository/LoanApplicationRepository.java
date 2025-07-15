@@ -1,0 +1,11 @@
+package com.loantrackr.repository;
+
+import com.loantrackr.enums.LoanStatus;
+import com.loantrackr.model.LoanApplication;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface LoanApplicationRepository extends JpaRepository<LoanApplication, Long> {
+    boolean existsByUserIdAndStatusIn(Long userId, List<LoanStatus> pending);
+}

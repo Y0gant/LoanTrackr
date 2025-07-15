@@ -1,9 +1,11 @@
 package com.loantrackr.dto.request;
 
 import jakarta.validation.constraints.*;
+import lombok.Data;
 
 import java.math.BigDecimal;
 
+@Data
 public class LoanApplicationRequest {
     @NotNull
     @Positive
