@@ -44,11 +44,30 @@ public class LoanApplication {
     @Column(nullable = false)
     private LoanStatus status;
 
+    @Column(nullable = false)
+    private String purpose;
+
+    @Column(nullable = false)
+    private String incomeSource;
+
+    @Column(nullable = false)
+    private BigDecimal monthlyIncome;
+
+    @OneToOne(mappedBy = "loanApplication")
+    private Loan loan;
+
     private LocalDateTime appliedAt;
+
+    @Column
+    private LocalDateTime closedAt;
 
     @PrePersist
     public void prePersist() {
         this.appliedAt = LocalDateTime.now();
         if (this.status == null) this.status = LoanStatus.PENDING;
+
+        if (this.loanRequested != null && this.processingFee != null) {
+            this.loanRequested = loanRequested.subtract(processingFee);
+        }
     }
 }

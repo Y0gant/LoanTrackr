@@ -19,4 +19,5 @@ public class LoanApplicationResponse {
     private LoanStatus status;
     private String lenderName;
     private LocalDateTime appliedAt;
+    private String purpose;
 }
