@@ -45,10 +45,5 @@ public class UpdateUserRequest {
     )
     private String password;
 
-    @Schema(
-            description = "User account status - true for active, false for inactive/suspended",
-            example = "true",
-            nullable = true
-    )
-    private Boolean isActive;
+
 }

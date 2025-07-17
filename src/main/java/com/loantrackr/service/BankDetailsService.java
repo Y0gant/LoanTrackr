@@ -8,6 +8,7 @@ import com.loantrackr.model.BankDetails;
 import com.loantrackr.model.User;
 import com.loantrackr.repository.BankDetailsRepository;
 import com.loantrackr.util.SecurityUtils;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.springframework.stereotype.Service;
@@ -41,7 +42,7 @@ public class BankDetailsService {
         }
 
         BankDetails bankDetails = bankDetailsRepository.findById(user.getId())
-                .orElseThrow();
+                .orElse(new BankDetails(user, "placeholderName", "000000000000000000000", "11111111111", "yourBank", "branchName", false));
 
 
         if (StringUtils.hasText(request.getAccountHolderName())) {
@@ -67,6 +68,7 @@ public class BankDetailsService {
         if (StringUtils.hasText(request.getUpiId())) {
             bankDetails.setUpiId(request.getUpiId());
         }
+        bankDetails.setAccountVerified(false);
         return bankDetailsRepository.save(bankDetails);
     }
 
@@ -82,6 +84,7 @@ public class BankDetailsService {
             throw new UnauthorizedException("Cannot get bank details for role: " + user.getRole() + " | user: " + userName);
         }
         Optional<BankDetails> byId = bankDetailsRepository.findById(user.getId());
+        if (byId.isEmpty()) throw new EntityNotFoundException("No Bank details found for user :" + userName);
         return byId.get();
     }
 

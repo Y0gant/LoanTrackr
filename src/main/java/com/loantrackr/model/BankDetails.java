@@ -39,4 +39,14 @@ public class BankDetails {
     @Column(nullable = false)
     private boolean isAccountVerified = false;
 
+    public BankDetails(User user, String accountHolderName, String accountNumber, String ifscCode, String bankName, String branchName, boolean isAccountVerified) {
+        this.user = user;
+        this.accountHolderName = accountHolderName;
+        this.accountNumber = accountNumber;
+        this.ifscCode = ifscCode;
+        this.bankName = bankName;
+        this.branchName = branchName;
+        this.upiId = upiId;
+        this.isAccountVerified = isAccountVerified;
+    }
 }

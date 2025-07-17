@@ -1,6 +1,7 @@
 package com.loantrackr.service;
 
 import com.loantrackr.dto.request.LoginRequest;
+import com.loantrackr.dto.request.RegisterBorrowerRequest;
 import com.loantrackr.dto.request.RegisterUser;
 import com.loantrackr.dto.request.UpdateUserRequest;
 import com.loantrackr.enums.AuthProvider;
@@ -36,13 +37,15 @@ public class UserService {
     //Core CRUD Ops
 
     @Transactional
-    public User createUser(RegisterUser request) {
+    public User createUser(RegisterBorrowerRequest request) {
         log.info("Attempting to create borrower user: {}", request.getEmail());
         try {
-            User user = modelMapper.map(request, User.class);
-            user.setRole(Role.BORROWER);
-            user.setProvider(AuthProvider.LOCAL);
-            user.setPassword(passwordEncoder.encode(user.getPassword()));
+            User user = User.builder().username(request.getUsername())
+                    .email(request.getEmail())
+                    .password(passwordEncoder.encode(request.getPassword()))
+                    .role(Role.BORROWER)
+                    .provider(AuthProvider.LOCAL)
+                    .build();
             User saved = userRepository.save(user);
             log.info("Successfully created user with ID: {}", saved.getId());
             return saved;
@@ -92,9 +95,6 @@ public class UserService {
             user.setEmail(userRequest.getEmail());
         }
 
-        if (userRequest.getIsActive() != null && userRequest.getIsActive() != user.isActive()) {
-            user.setActive(userRequest.getIsActive());
-        }
 
         log.info("User updated successfully. ID: {}", id);
         return userRepository.save(user);

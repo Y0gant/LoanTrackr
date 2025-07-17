@@ -1,10 +1,9 @@
 package com.loantrackr.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.MapsId;
-import jakarta.persistence.OneToOne;
+import jakarta.persistence.*;
 import lombok.*;
+
+import java.time.LocalDate;
 
 @Builder
 @AllArgsConstructor
@@ -16,11 +15,34 @@ public class BorrowerKycDetails {
     @Id
     private Long id;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @MapsId
     private User user;
 
+    @Column(nullable = false)
+    private LocalDate dateOfBirth;
+
+    @Column(nullable = false)
+    private String address;
+
+    @Column(nullable = false)
+    private String pincode;
+
+    @Column(nullable = false)
+    private String city;
+
+    @Column(nullable = false)
+    private String state;
+
+    @Column(nullable = false)
+    private String employmentType;
+
+    @Column
     private String aadhaarNumber;
+
+    @Column
     private String panNumber;
+
+    @Column(nullable = false)
     private boolean isKycVerified = false;
 }
