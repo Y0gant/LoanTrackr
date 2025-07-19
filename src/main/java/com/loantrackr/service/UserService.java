@@ -38,48 +38,52 @@ public class UserService {
 
     @Transactional
     public User createUser(RegisterBorrowerRequest request) {
-        log.info("Attempting to create borrower user: {}", request.getEmail());
+        log.info("START: Creating borrower user: {}", request.getEmail());
         try {
-            User user = User.builder().username(request.getUsername())
+            User user = User.builder()
+                    .username(request.getUsername())
                     .email(request.getEmail())
                     .password(passwordEncoder.encode(request.getPassword()))
                     .role(Role.BORROWER)
                     .provider(AuthProvider.LOCAL)
                     .build();
             User saved = userRepository.save(user);
-            log.info("Successfully created user with ID: {}", saved.getId());
+            log.info("SUCCESS: Created borrower user with ID: {}", saved.getId());
             return saved;
         } catch (Exception e) {
-            log.error("Error creating user: {}", request.getEmail(), e);
+            log.error("ERROR: Failed to create borrower user: {}", request.getEmail(), e);
             throw e;
         }
     }
 
     @Transactional
     public User createPrivilegedUser(RegisterUser request, Role role) {
-        log.info("Creating privileged user with role: {} and email: {}", role, request.getEmail());
+        log.info("START: Creating privileged user. Email: {}, Role: {}", request.getEmail(), role);
         try {
             User user = modelMapper.map(request, User.class);
             user.setProvider(AuthProvider.LOCAL);
             user.setRole(role);
             user.setPassword(passwordEncoder.encode(user.getPassword()));
             User saved = userRepository.save(user);
-            log.info("Successfully created privileged user with ID: {}", saved.getId());
+            log.info("SUCCESS: Created privileged user with ID: {}", saved.getId());
             return saved;
         } catch (Exception e) {
-            log.error("Error creating privileged user: {}", request.getEmail(), e);
+            log.error("ERROR: Failed to create privileged user: {}", request.getEmail(), e);
             throw e;
         }
     }
 
     @Transactional
     public User updateUser(Long id, UpdateUserRequest userRequest) {
+        log.info("START: Updating user with ID: {}", id);
         User user = userRepository.findUserById(id)
                 .orElseThrow(() -> {
-                    log.warn("Update failed. User not found with ID: {}", id);
+                    log.warn("WARN: Update failed. User not found. ID: {}", id);
                     return new UserNotFoundException("User not found with ID: " + id);
                 });
+
         validateActiveAndNotDeleted(user);
+
         if (userRequest.getUsername() != null && !userRequest.getUsername().isBlank()) {
             user.setUsername(userRequest.getUsername());
         }
@@ -95,92 +99,94 @@ public class UserService {
             user.setEmail(userRequest.getEmail());
         }
 
-
-        log.info("User updated successfully. ID: {}", id);
+        log.info("SUCCESS: Updated user with ID: {}", id);
         return userRepository.save(user);
     }
 
     @Transactional
     public boolean deleteUser(Long id) {
+        log.warn("START: Soft-deleting user. ID: {}", id);
         User user = userRepository.findUserById(id)
                 .orElseThrow(() -> {
-                    log.warn("Delete failed. User not found with ID: {}", id);
+                    log.warn("WARN: Delete failed. User not found. ID: {}", id);
                     return new UserNotFoundException("User not found with ID: " + id);
                 });
+
         user.setActive(false);
         user.setEmailVerified(false);
         user.setVerified(false);
         user.setDeletedAt(LocalDateTime.now());
         userRepository.save(user);
-        log.warn("Soft-deleted user. ID: {}", id);
+        log.warn("SUCCESS: Soft-deleted user. ID: {}", id);
         return true;
     }
-
 
     // Read ops
 
     public Optional<User> getUserByID(Long id) {
+        log.debug("Fetching user by ID: {}", id);
         return userRepository.findUserById(id);
     }
 
     public Optional<User> getUserByUserName(String userName) {
+        log.debug("Fetching user by username: {}", userName);
         return userRepository.findUserByUsername(userName);
     }
 
     public Optional<User> getUserByEmail(String email) {
+        log.debug("Fetching user by email: {}", email);
         return userRepository.findByEmail(email);
     }
-
 
     // Email Verification
 
     public boolean isEmailVerified(Long id) {
+        log.info("Checking email verification status. User ID: {}", id);
         User user = getUserByID(id)
                 .orElseThrow(() -> {
-                    log.warn("Email verification check failed. User not found. ID: {}", id);
+                    log.warn("WARN: Email verification check failed. User not found. ID: {}", id);
                     return new UserNotFoundException("User not found with ID: " + id);
                 });
 
         validateActiveAndNotDeleted(user);
-
         return user.isEmailVerified();
     }
 
     @Transactional
     public boolean markEmailVerified(Long id) {
+        log.info("Marking email verified. User ID: {}", id);
         User user = getUserByID(id)
                 .orElseThrow(() -> {
-                    log.warn("Mark email verified failed. User not found. ID: {}", id);
+                    log.warn("WARN: Mark email verified failed. User not found. ID: {}", id);
                     return new UserNotFoundException("User not found with ID: " + id);
                 });
 
         validateActiveAndNotDeleted(user);
-
         user.setEmailVerified(true);
         userRepository.save(user);
-        log.info("Email marked as verified for user ID: {}", id);
+        log.info("SUCCESS: Email marked as verified for user ID: {}", id);
         return true;
     }
-
 
     public boolean isActive(Long id) {
         return getUserByID(id)
                 .orElseThrow(() -> {
-                    log.warn("isActive check failed. User not found. ID: {}", id);
+                    log.warn("WARN: isActive check failed. User not found. ID: {}", id);
                     return new UserNotFoundException("User not found with ID: " + id);
                 }).isActive();
     }
 
     @Transactional
     public boolean deactivateUser(Long id) {
+        log.warn("START: Deactivating user. ID: {}", id);
         User user = getUserByID(id)
                 .orElseThrow(() -> {
-                    log.warn("Deactivate failed. User not found. ID: {}", id);
+                    log.warn("WARN: Deactivate failed. User not found. ID: {}", id);
                     return new UserNotFoundException("User not found with ID: " + id);
                 });
 
         if (user.isPermanentlyDeleted()) {
-            log.warn("Attempt to deactivate permanently deleted user. ID: {}", id);
+            log.warn("WARN: Attempt to deactivate permanently deleted user. ID: {}", id);
             throw new UserPermanentlyDeletedException("Cannot deactivate a permanently deleted user.");
         }
 
@@ -188,48 +194,48 @@ public class UserService {
             user.setActive(false);
             user.setDeletedAt(LocalDateTime.now());
             userRepository.save(user);
-            log.warn("User deactivated. ID: {}", id);
+            log.warn("SUCCESS: User deactivated. ID: {}", id);
             return true;
         }
 
-        log.info("Deactivate skipped. User already inactive. ID: {}", id);
+        log.info("SKIPPED: User already inactive. ID: {}", id);
         return false;
     }
 
     public boolean isVerified(Long id) {
         return getUserByID(id)
                 .orElseThrow(() -> {
-                    log.warn("isVerified check failed. User not found. ID: {}", id);
+                    log.warn("WARN: isVerified check failed. User not found. ID: {}", id);
                     return new UserNotFoundException("User not found with ID: " + id);
                 }).isVerified();
     }
 
     @Transactional
     public boolean markUserVerified(Long id) {
+        log.info("Marking user as verified. ID: {}", id);
         User user = getUserByID(id).orElseThrow(() -> {
-            log.warn("Mark verified failed. User not found. ID: {}", id);
+            log.warn("WARN: Mark verified failed. User not found. ID: {}", id);
             return new UserNotFoundException("User not found with ID: " + id);
         });
 
         validateActiveAndNotDeleted(user);
-
         user.setVerified(true);
         userRepository.save(user);
-        log.info("User marked as verified. ID: {}", id);
+        log.info("SUCCESS: User marked as verified. ID: {}", id);
         return true;
     }
 
-
     @Transactional
     public boolean activateUser(Long id) {
+        log.warn("START: Activating user. ID: {}", id);
         User user = getUserByID(id)
                 .orElseThrow(() -> {
-                    log.warn("Activate failed. User not found. ID: {}", id);
+                    log.warn("WARN: Activate failed. User not found. ID: {}", id);
                     return new UserNotFoundException("User not found with ID: " + id);
                 });
 
         if (user.isPermanentlyDeleted()) {
-            log.warn("Attempt to activate permanently deleted user. ID: {}", id);
+            log.warn("WARN: Attempt to activate permanently deleted user. ID: {}", id);
             throw new UserPermanentlyDeletedException("Cannot activate a permanently deleted user.");
         }
 
@@ -237,18 +243,18 @@ public class UserService {
             user.setActive(true);
             user.setDeletedAt(null);
             userRepository.save(user);
-            log.info("User activated. ID: {}", id);
+            log.info("SUCCESS: User activated. ID: {}", id);
             return true;
         }
 
-        log.info("Activate skipped. User already active. ID: {}", id);
+        log.info("SKIPPED: User already active. ID: {}", id);
         return false;
     }
 
     public boolean hasRole(Long id, Role role) {
         return getUserByID(id)
                 .orElseThrow(() -> {
-                    log.warn("Role check failed. User not found. ID: {}", id);
+                    log.warn("WARN: Role check failed. User not found. ID: {}", id);
                     return new UserNotFoundException("User not found with ID: " + id);
                 })
                 .getRole().equals(role);
@@ -257,14 +263,17 @@ public class UserService {
     // Utility
 
     public boolean existsByEmail(String email) {
+        log.debug("Checking if email exists: {}", email);
         return userRepository.existsByEmail(email);
     }
 
     public boolean existsByUserName(String userName) {
+        log.debug("Checking if username exists: {}", userName);
         return userRepository.existsByUsername(userName);
     }
 
     public boolean existsByRole(Role role) {
+        log.debug("Checking if any user exists with role: {}", role);
         return userRepository.existsByRole(role);
     }
 
@@ -272,22 +281,22 @@ public class UserService {
 
     private void validateActiveAndNotDeleted(User user) {
         if (!user.isActive()) {
-            log.warn("User is inactive: ID={}", user.getId());
+            log.warn("WARN: User is inactive. ID={}", user.getId());
             throw new InactiveUserException("User is inactive.");
         }
         if (user.isPermanentlyDeleted()) {
-            log.warn("User is permanently deleted: ID={}", user.getId());
+            log.warn("WARN: User is permanently deleted. ID={}", user.getId());
             throw new UserPermanentlyDeletedException("User is permanently deleted.");
         }
     }
 
     public Optional<User> authenticate(String identifier, String password) {
-        log.info("Authentication attempt for identifier: {}", identifier);
+        log.info("START: Authentication attempt for identifier: {}", identifier);
 
         Optional<User> optionalUser = userRepository.findUserByUsernameOrEmail(identifier, identifier);
 
         if (optionalUser.isEmpty()) {
-            log.warn("Authentication failed. No user found with identifier: {}", identifier);
+            log.warn("WARN: Authentication failed. No user found. Identifier: {}", identifier);
             throw new UserNotFoundException("Invalid username/email or password.");
         }
 
@@ -296,26 +305,27 @@ public class UserService {
         validateActiveAndNotDeleted(user);
 
         if (!passwordEncoder.matches(password, user.getPassword())) {
-            log.warn("Authentication failed. Invalid password for user ID: {}", user.getId());
+            log.warn("WARN: Authentication failed. Invalid password. User ID: {}", user.getId());
             throw new InvalidCredentialsException("Invalid username/email or password.");
         }
 
-        log.info("Authentication successful for user ID: {}", user.getId());
+        log.info("SUCCESS: Authentication successful. User ID: {}", user.getId());
         return Optional.of(user);
     }
-
 
     public void validatePrivilegedAccess(User user) {
         if (EnumSet.of(Role.LENDER, Role.SYSTEM_ADMIN, Role.LOAN_MANAGER).contains(user.getRole())
                 && !user.isVerified()) {
+            log.warn("WARN: Unauthorized privileged access attempt. User ID: {}", user.getId());
             throw new UnauthorizedException("Privileged account is not verified yet.");
         }
     }
 
-
     public String generateJwtForLogin(LoginRequest loginUser) {
+        log.info("START: Generating JWT for login. Identifier: {}", loginUser.getIdentifier());
         Optional<User> user = userRepository.findUserByUsernameOrEmail(loginUser.getIdentifier(), loginUser.getIdentifier());
         if (user.isEmpty()) {
+            log.error("ERROR: JWT generation failed. User not found: {}", loginUser.getIdentifier());
             throw new UsernameNotFoundException("User not found: " + loginUser.getIdentifier());
         }
         User user1 = user.get();
@@ -325,6 +335,7 @@ public class UserService {
         claims.put("isVerified", user1.isVerified());
         claims.put("isEmailVerified", user1.isEmailVerified());
         claims.put("roles", user1.getRole());
+        log.info("SUCCESS: JWT generated for user ID: {}", user1.getId());
         return jwtUtils.generateToken(user1.getUsername(), claims);
     }
 }
