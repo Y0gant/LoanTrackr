@@ -30,6 +30,7 @@ public class SystemAdminService {
     private final LenderProfileRepository lenderProfileRepository;
     private final LenderOnboardingRepository onboardingRepository;
     private final EmailService emailService;
+    private LenderProfileService lenderProfileService;
 
 
     @Transactional
@@ -186,11 +187,9 @@ public class SystemAdminService {
         User lenderUser = userService.createPrivilegedUser(reg, Role.LENDER);
         lenderUser.setVerified(true);
         userRepository.save(lenderUser);
-        //TODO
-        // Create lender profile
-        // lenderProfileService.createProfileFromRequest(request, lenderUser);
-        onboardingRepository.delete(request);
+        LenderProfile profileFromRequest = lenderProfileService.createProfileFromRequest(request, lenderUser);
         emailService.sendLenderCredentials(request.getEmail(), lenderUser.getUsername(), randomPassword);
+        onboardingRepository.delete(request);
         log.info("Lender approved and account created for ID: {}", lenderUser.getId());
         return true;
     }
