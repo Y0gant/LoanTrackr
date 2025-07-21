@@ -88,4 +88,19 @@ public class EmailService {
     }
 
 
+    public void sendOtpEmail(String email, String otp) {
+        String subject = "Your OTP for Verification";
+        String body = """
+                Dear user,
+                
+                Your One-Time Password (OTP) is: %s
+                
+                This OTP is valid for 10 minutes. Please do not share it with anyone.
+                
+                Regards,
+                LoanTrackr Team
+                """.formatted(otp);
+
+        sendEmail(email, subject, body);
+    }
 }
