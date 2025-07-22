@@ -8,6 +8,11 @@ spring:
     username: ${DATABASE_USERNAME}
     password: ${DATABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
+  data:
+    redis:
+      port: ${REDIS_DATABASE_PORT}
+      host: ${REDIS_DATABASE_HOST}
+      connect-timeout: 60000
   jpa:
     hibernate:
       ddl-auto: update
@@ -53,3 +58,5 @@ mail:
   from:
     email: no-reply@loantrackr.com
     name: LoanTrackr Team
+bootstrap:
+  email: ${BOOTSTRAP_EMAIL}
