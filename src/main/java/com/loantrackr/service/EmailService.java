@@ -3,7 +3,6 @@ package com.loantrackr.service;
 import com.loantrackr.util.TemplateUtil;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,11 +15,10 @@ import java.util.Map;
 
 @Slf4j
 @Service
-@AllArgsConstructor
 @RequiredArgsConstructor
 public class EmailService {
 
-    private JavaMailSender mailSender;
+    private final JavaMailSender mailSender;
 
     @Value("${mail.from.email}")
     private String fromEmail;
@@ -36,6 +34,7 @@ public class EmailService {
             mailSender.send(mail);
         } catch (Exception e) {
             log.error("Exception in sendEmail ", e);
+            throw e;
         }
     }
 
@@ -58,6 +57,7 @@ public class EmailService {
             throw new RuntimeException("Failed to send email", e);
         } catch (Exception ex) {
             log.error("Unexpected error while sending email", ex);
+            throw new RuntimeException("Unexpected error while sending email" + ex.getMessage());
         }
     }
 

@@ -10,8 +10,8 @@ import com.loantrackr.model.User;
 import com.loantrackr.repository.LenderOnboardingRepository;
 import com.loantrackr.repository.LenderProfileRepository;
 import com.loantrackr.repository.UserRepository;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,7 +22,6 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@AllArgsConstructor
 public class SystemAdminService {
 
     private final UserService userService;
@@ -30,12 +29,37 @@ public class SystemAdminService {
     private final LenderProfileRepository lenderProfileRepository;
     private final LenderOnboardingRepository onboardingRepository;
     private final EmailService emailService;
-    private LenderProfileService lenderProfileService;
+    private final LenderProfileService lenderProfileService;
+    private final OtpService otpService;
+    public String systemEmail;
 
+    public SystemAdminService(UserService userService, UserRepository userRepository, LenderProfileRepository lenderProfileRepository, LenderOnboardingRepository onboardingRepository, EmailService emailService, LenderProfileService lenderProfileService, OtpService otpService, @Value("${bootstrap.email}") String firstEmail) {
+        this.userService = userService;
+        this.userRepository = userRepository;
+        this.lenderProfileRepository = lenderProfileRepository;
+        this.onboardingRepository = onboardingRepository;
+        this.emailService = emailService;
+        this.lenderProfileService = lenderProfileService;
+        this.otpService = otpService;
+        this.systemEmail = firstEmail;
+    }
+
+    public boolean generateAndSendBootstrapOtp() {
+        if (systemAdminExists()) {
+            throw new SetupLockedException("A system admin already exists!");
+        }
+        return otpService.generateAndSendOtp(systemEmail);
+    }
+
+    public boolean systemAdminExists() {
+        return userRepository.existsByRole(Role.SYSTEM_ADMIN);
+    }
 
     @Transactional
-    public User createInitialSystemAdmin(RegisterUser request) {
+    public User createInitialSystemAdmin(RegisterUser request, String otp) {
         log.info("Attempting to create initial SystemAdmin: {}", request.getEmail());
+
+        otpService.validateOtp(systemEmail, otp);
 
         if (userService.existsByRole(Role.SYSTEM_ADMIN)) {
             log.error("Initial SystemAdmin creation blocked - a SYSTEM_ADMIN already exists.");
