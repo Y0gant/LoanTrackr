@@ -1,10 +1,14 @@
 package com.loantrackr.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Builder;
+import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+@Data
+@Builder
 @Schema(description = "Response object for a successful loan disbursement")
 public class LoanDisbursementResponse {
 
@@ -31,4 +35,5 @@ public class LoanDisbursementResponse {
 
     @Schema(description = "Human-readable message about the disbursement outcome", example = "Loan disbursed successfully")
     private String message;
+
 }
