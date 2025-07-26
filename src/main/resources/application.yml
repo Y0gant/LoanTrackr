@@ -39,6 +39,9 @@ spring:
   jwt:
     secret-key: ${JWT_SECRET_KEY}
     expiration-ms: 900000
+  servlet:
+    multipart:
+      max-file-size: 10MB
 springdoc:
   api-docs:
     path: /api-docs

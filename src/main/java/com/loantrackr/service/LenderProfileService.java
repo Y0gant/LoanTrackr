@@ -1,11 +1,15 @@
 package com.loantrackr.service;
 
+import com.loantrackr.dto.request.LenderOnboardingForm;
 import com.loantrackr.dto.request.LenderUpdateRequest;
 import com.loantrackr.dto.response.LenderSummaryResponse;
+import com.loantrackr.enums.RequestStatus;
+import com.loantrackr.exception.OperationNotAllowedException;
 import com.loantrackr.exception.UserNotFoundException;
 import com.loantrackr.model.LenderOnboarding;
 import com.loantrackr.model.LenderProfile;
 import com.loantrackr.model.User;
+import com.loantrackr.repository.LenderOnboardingRepository;
 import com.loantrackr.repository.LenderProfileRepository;
 import com.loantrackr.util.SecurityUtils;
 import com.loantrackr.util.TenureUtils;
@@ -26,8 +30,36 @@ public class LenderProfileService {
 
     private final LenderProfileRepository lenderProfileRepository;
     private final UserService userService;
+    private final LenderOnboardingRepository lenderOnboardingRepository;
+    private final FileStorageService storageService;
 
+    @Transactional
+    public LenderOnboarding createLenderOnboardingApplication(LenderOnboardingForm form) {
+        Optional<User> userByEmail = userService.getUserByEmail(form.getEmail());
+        if (userByEmail.isPresent()) {
+            throw new OperationNotAllowedException("A user already exists with email :" + form.getEmail());
+        }
+        String gstCertificate = storageService.storeFile(form.getGstCertificate(), "gst_certificate");
+        String panCards = storageService.storeFile(form.getPanCard(), "pan_cards");
+        String rbiLicenses = storageService.storeFile(form.getRbiLicense(), "rbi_licenses");
 
+        LenderOnboarding onboarding = LenderOnboarding.builder()
+                .username(form.getUsername())
+                .email(form.getEmail())
+                .gstin(form.getGstin())
+                .rbiLicenseNumber(form.getRbiLicenseNumber())
+                .organizationName(form.getOrganizationName())
+                .contactPersonName(form.getContactPersonName())
+                .gstCertificate(gstCertificate)
+                .panCard(panCards)
+                .rbiLicense(rbiLicenses)
+                .reviewed(false)
+                .status(RequestStatus.PENDING)
+                .build();
+        return lenderOnboardingRepository.save(onboarding);
+    }
+
+    @Transactional
     public LenderProfile createProfileFromRequest(LenderOnboarding request, User lenderUser) {
         LenderProfile lenderProfile = LenderProfile.builder()
                 .user(lenderUser)

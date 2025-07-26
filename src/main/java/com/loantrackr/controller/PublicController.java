@@ -1,21 +1,22 @@
 package com.loantrackr.controller;
 
+import com.loantrackr.dto.request.LenderOnboardingForm;
 import com.loantrackr.dto.request.LoginRequest;
 import com.loantrackr.dto.request.RegisterBorrowerRequest;
 import com.loantrackr.dto.request.RegisterUser;
 import com.loantrackr.dto.response.ApiResponse;
 import com.loantrackr.dto.response.UserResponse;
+import com.loantrackr.exception.OperationNotAllowedException;
 import com.loantrackr.exception.SetupLockedException;
+import com.loantrackr.model.LenderOnboarding;
 import com.loantrackr.model.User;
-import com.loantrackr.service.BorrowerService;
-import com.loantrackr.service.OtpService;
-import com.loantrackr.service.SystemAdminService;
-import com.loantrackr.service.UserService;
+import com.loantrackr.service.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -32,6 +33,7 @@ public class PublicController {
     private final BorrowerService borrowerService;
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
+    private final LenderProfileService lenderProfileService;
 
 
     @PostMapping("/login")
@@ -177,6 +179,23 @@ public class PublicController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("An unexpected error occurred"));
         }
+    }
+
+    @PostMapping(value = "/lender/application", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<Object>> lenderApplication(@Valid @ModelAttribute LenderOnboardingForm form) {
+        try {
+            LenderOnboarding lenderOnboardingApplication = lenderProfileService.createLenderOnboardingApplication(form);
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(lenderOnboardingApplication, "Application submitted successfully"));
+        } catch (OperationNotAllowedException e) {
+            log.error("Lender Application has a duplicate email");
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("Try different email"));
+        } catch (Exception e) {
+            log.error("Unexpected error while submitting lender application", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("An unexpected error occurred"));
+        }
+
     }
 
 }
