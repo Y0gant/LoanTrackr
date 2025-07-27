@@ -22,6 +22,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Optional;
+
 @Slf4j
 @RestController
 @RequiredArgsConstructor
@@ -138,6 +140,12 @@ public class PublicController {
         try {
             log.info("Attempting to generate OTP for borrower's email :{}", email);
 
+            Optional<User> userByEmail = userService.getUserByEmail(email);
+
+            if (userByEmail.isPresent()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ApiResponse.error("User with the provided email already exists, Please try different email"));
+            }
             boolean otpGenerated = otpService.generateAndSendOtp(email);
             if (!otpGenerated) {
                 log.error("Failed to generate/send OTP to email :{}", email);

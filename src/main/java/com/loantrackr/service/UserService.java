@@ -46,6 +46,9 @@ public class UserService {
                     .password(passwordEncoder.encode(request.getPassword()))
                     .role(Role.BORROWER)
                     .provider(AuthProvider.LOCAL)
+                    .isVerified(true)
+                    .isEmailVerified(true)
+                    .isActive(true)
                     .build();
             User saved = userRepository.save(user);
             log.info("SUCCESS: Created borrower user with ID: {}", saved.getId());
@@ -83,13 +86,15 @@ public class UserService {
                 });
 
         validateActiveAndNotDeleted(user);
-
+        boolean isUpdated = false;
         if (userRequest.getUsername() != null && !userRequest.getUsername().isBlank()) {
             user.setUsername(userRequest.getUsername());
+            isUpdated = true;
         }
 
         if (userRequest.getPassword() != null && !userRequest.getPassword().isBlank()) {
             user.setPassword(passwordEncoder.encode(userRequest.getPassword()));
+            isUpdated = true;
         }
 
         if (userRequest.getEmail() != null && !userRequest.getEmail().isBlank()) {
@@ -97,8 +102,11 @@ public class UserService {
                 user.setEmailVerified(false);
             }
             user.setEmail(userRequest.getEmail());
+            isUpdated = true;
         }
-
+        if (isUpdated) {
+            user.setUpdatedAt(LocalDateTime.now());
+        }
         log.info("SUCCESS: Updated user with ID: {}", id);
         return userRepository.save(user);
     }
@@ -321,6 +329,7 @@ public class UserService {
         }
     }
 
+    @Transactional
     public String generateJwtForLogin(LoginRequest loginUser) {
         log.info("START: Generating JWT for login. Identifier: {}", loginUser.getIdentifier());
         Optional<User> user = userRepository.findUserByUsernameOrEmail(loginUser.getIdentifier(), loginUser.getIdentifier());
@@ -329,6 +338,8 @@ public class UserService {
             throw new UsernameNotFoundException("User not found: " + loginUser.getIdentifier());
         }
         User user1 = user.get();
+        user1.setLastLogin(LocalDateTime.now());
+        userRepository.save(user1);
         Map<String, Object> claims = new HashMap<>();
         claims.put("id", user1.getId());
         claims.put("email", user1.getEmail());

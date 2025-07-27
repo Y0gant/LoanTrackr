@@ -4,12 +4,14 @@ import com.loantrackr.dto.request.KycUpdateRequest;
 import com.loantrackr.dto.request.RegisterBorrowerRequest;
 import com.loantrackr.dto.request.UpdateUserRequest;
 import com.loantrackr.dto.response.UserResponse;
+import com.loantrackr.exception.OperationNotAllowedException;
 import com.loantrackr.exception.UserNotFoundException;
 import com.loantrackr.model.BankDetails;
 import com.loantrackr.model.BorrowerKycDetails;
 import com.loantrackr.model.User;
 import com.loantrackr.repository.BankDetailsRepository;
 import com.loantrackr.repository.BorrowerKycDetailsRepository;
+import com.loantrackr.repository.LoanRepository;
 import lombok.AllArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.security.core.Authentication;
@@ -28,6 +30,8 @@ public class BorrowerService {
     private final ModelMapper mapper;
     private final BorrowerKycDetailsRepository kycDetails;
     private final BankDetailsRepository bankDetailsRepository;
+    private final LoanRepository loanRepository;
+    private final LoanService loanService;
 
     public UserResponse createBorrower(RegisterBorrowerRequest userToRegister) {
 
@@ -149,6 +153,9 @@ public class BorrowerService {
         String userName = getCurrentUserName();
         Optional<User> userByUserName = userService.getUserByUserName(userName);
         if (userByUserName.isEmpty()) throw new UserNotFoundException("No user found");
+        if (loanService.userHasActiveLoan(userByUserName.get().getId())) {
+            throw new OperationNotAllowedException("User has active loan cannot delete account.");
+        }
         Optional<BorrowerKycDetails> byId = kycDetails.findById(userByUserName.get().getId());
         if (byId.isPresent()) {
             BorrowerKycDetails borrowerKycDetails = byId.get();
