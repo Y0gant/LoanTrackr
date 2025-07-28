@@ -140,7 +140,7 @@ public class PublicController {
         try {
             log.info("Attempting to generate OTP for borrower's email :{}", email);
 
-            Optional<User> userByEmail = userService.getUserByEmail(email);
+            Optional<User> userByEmail = userService.getUserByEmail(email.toLowerCase());
 
             if (userByEmail.isPresent()) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)

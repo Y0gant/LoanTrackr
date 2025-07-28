@@ -67,6 +67,7 @@ public class SystemAdminService {
         }
 
         User admin = userService.createPrivilegedUser(request, Role.SYSTEM_ADMIN);
+        admin.setEmailVerified(true);
         admin.setVerified(true);
         User saved = userRepository.save(admin);
 

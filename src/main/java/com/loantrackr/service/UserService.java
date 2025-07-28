@@ -42,7 +42,7 @@ public class UserService {
         try {
             User user = User.builder()
                     .username(request.getUsername())
-                    .email(request.getEmail())
+                    .email(request.getEmail().toLowerCase())
                     .password(passwordEncoder.encode(request.getPassword()))
                     .role(Role.BORROWER)
                     .provider(AuthProvider.LOCAL)
@@ -64,6 +64,7 @@ public class UserService {
         log.info("START: Creating privileged user. Email: {}, Role: {}", request.getEmail(), role);
         try {
             User user = modelMapper.map(request, User.class);
+            user.setEmail(user.getEmail().toLowerCase());
             user.setProvider(AuthProvider.LOCAL);
             user.setRole(role);
             user.setPassword(passwordEncoder.encode(user.getPassword()));
@@ -101,7 +102,7 @@ public class UserService {
             if (!user.getEmail().equals(userRequest.getEmail())) {
                 user.setEmailVerified(false);
             }
-            user.setEmail(userRequest.getEmail());
+            user.setEmail(userRequest.getEmail().toLowerCase());
             isUpdated = true;
         }
         if (isUpdated) {
@@ -301,7 +302,7 @@ public class UserService {
     public Optional<User> authenticate(String identifier, String password) {
         log.info("START: Authentication attempt for identifier: {}", identifier);
 
-        Optional<User> optionalUser = userRepository.findUserByUsernameOrEmail(identifier, identifier);
+        Optional<User> optionalUser = userRepository.findUserByUsernameOrEmail(identifier);
 
         if (optionalUser.isEmpty()) {
             log.warn("WARN: Authentication failed. No user found. Identifier: {}", identifier);
@@ -332,7 +333,7 @@ public class UserService {
     @Transactional
     public String generateJwtForLogin(LoginRequest loginUser) {
         log.info("START: Generating JWT for login. Identifier: {}", loginUser.getIdentifier());
-        Optional<User> user = userRepository.findUserByUsernameOrEmail(loginUser.getIdentifier(), loginUser.getIdentifier());
+        Optional<User> user = userRepository.findUserByUsernameOrEmail(loginUser.getIdentifier());
         if (user.isEmpty()) {
             log.error("ERROR: JWT generation failed. User not found: {}", loginUser.getIdentifier());
             throw new UsernameNotFoundException("User not found: " + loginUser.getIdentifier());
