@@ -1,16 +1,21 @@
 package com.loantrackr.service;
 
 import com.loantrackr.dto.request.RegisterUser;
+import com.loantrackr.dto.response.UserResponse;
+import com.loantrackr.enums.LoanStatus;
 import com.loantrackr.enums.RequestStatus;
 import com.loantrackr.enums.Role;
 import com.loantrackr.exception.*;
 import com.loantrackr.model.LenderOnboarding;
 import com.loantrackr.model.LenderProfile;
+import com.loantrackr.model.LoanApplication;
 import com.loantrackr.model.User;
 import com.loantrackr.repository.LenderOnboardingRepository;
 import com.loantrackr.repository.LenderProfileRepository;
+import com.loantrackr.repository.LoanApplicationRepository;
 import com.loantrackr.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,9 +36,11 @@ public class SystemAdminService {
     private final EmailService emailService;
     private final LenderProfileService lenderProfileService;
     private final OtpService otpService;
+    private final ModelMapper modelMapper;
+    private final LoanApplicationRepository loanApplicationRepository;
     public String systemEmail;
 
-    public SystemAdminService(UserService userService, UserRepository userRepository, LenderProfileRepository lenderProfileRepository, LenderOnboardingRepository onboardingRepository, EmailService emailService, LenderProfileService lenderProfileService, OtpService otpService, @Value("${bootstrap.email}") String firstEmail) {
+    public SystemAdminService(UserService userService, UserRepository userRepository, LenderProfileRepository lenderProfileRepository, LenderOnboardingRepository onboardingRepository, EmailService emailService, LenderProfileService lenderProfileService, OtpService otpService, @Value("${bootstrap.email}") String firstEmail, ModelMapper modelMapper, LoanApplicationRepository loanApplicationRepository) {
         this.userService = userService;
         this.userRepository = userRepository;
         this.lenderProfileRepository = lenderProfileRepository;
@@ -42,6 +49,8 @@ public class SystemAdminService {
         this.lenderProfileService = lenderProfileService;
         this.otpService = otpService;
         this.systemEmail = firstEmail;
+        this.modelMapper = modelMapper;
+        this.loanApplicationRepository = loanApplicationRepository;
     }
 
     public boolean generateAndSendBootstrapOtp() {
@@ -77,17 +86,19 @@ public class SystemAdminService {
 
 
     @Transactional
-    public User createSystemAdmin(User requester, RegisterUser request) {
+    public UserResponse createSystemAdmin(User requester, RegisterUser request) {
         validateVerifiedAdmin(requester);
 
         log.info("Verified admin [{}] attempting to create new SystemAdmin: {}", requester.getId(), request.getEmail());
 
         User newAdmin = userService.createPrivilegedUser(request, Role.SYSTEM_ADMIN);
         newAdmin.setVerified(false);
+        newAdmin.setEmailVerified(true);
         User saved = userRepository.save(newAdmin);
+        UserResponse response = modelMapper.map(saved, UserResponse.class);
 
         log.info("New unverified SystemAdmin created. ID: {}, Created by: {}", saved.getId(), requester.getId());
-        return saved;
+        return response;
     }
 
 
@@ -160,6 +171,9 @@ public class SystemAdminService {
             throw new UserNotFoundException("No lender found for id :" + lenderId);
         }
         LenderProfile lenderProfile = lenderProfileOptional.get();
+        if (lenderProfile.isVerified()) {
+            return true;
+        }
         boolean verified = userService.markUserVerified(lenderId);
         if (!verified) {
             throw new UserNotFoundException("User not found for lender with id :" + lenderId);
@@ -204,7 +218,7 @@ public class SystemAdminService {
 
         RegisterUser reg = RegisterUser.builder()
                 .email(request.getEmail())
-                .username(request.getUsername())
+                .username(UUID.randomUUID().toString())
                 .password(randomPassword)
                 .role(Role.LENDER)
                 .build();
@@ -213,8 +227,14 @@ public class SystemAdminService {
         lenderUser.setVerified(true);
         userRepository.save(lenderUser);
         LenderProfile profileFromRequest = lenderProfileService.createProfileFromRequest(request, lenderUser);
+        if (profileFromRequest == null) {
+            throw new IllegalStateException("Unable to create lender profile from request");
+        }
         emailService.sendLenderCredentials(request.getEmail(), lenderUser.getUsername(), randomPassword);
-        onboardingRepository.delete(request);
+        request.setStatus(RequestStatus.APPROVED);
+        request.setReviewed(true);
+        request.setProcessedAt(LocalDateTime.now());
+        onboardingRepository.save(request);
         log.info("Lender approved and account created for ID: {}", lenderUser.getId());
         return true;
     }
@@ -227,23 +247,18 @@ public class SystemAdminService {
         return onboardingRepository.findAllByStatus(status);
     }
 
-    @Transactional
-    public boolean markLenderVerified(Long lenderUserId) {
-        User user = userService.getUserByID(lenderUserId)
-                .orElseThrow(() -> new UserNotFoundException("User not found"));
-
-        if (!user.getRole().equals(Role.LENDER)) {
-            throw new InvalidRoleException("Not a LENDER user.");
-        }
-
-        user.setVerified(true);
-        userRepository.save(user);
-        return true;
-    }
 
     @Transactional
     public boolean deactivateLender(Long lenderUserId) {
         LenderProfile lenderProfile = getLenderProfile(lenderUserId);
+        List<LoanApplication> loanApplicationByLender = loanApplicationRepository.findLoanApplicationByLender(lenderProfile);
+        boolean existsActiveLoans = loanApplicationByLender.stream()
+                .anyMatch(x -> x.getStatus() == LoanStatus.APPROVED
+                        || x.getStatus() == LoanStatus.PENDING
+                        || x.getStatus() == LoanStatus.DISBURSED);
+        if (existsActiveLoans) {
+            throw new OperationNotAllowedException("Cannot deactivate lender as it has active loans");
+        }
         lenderProfile.setVerified(false);
         lenderProfileRepository.save(lenderProfile);
         return userService.deactivateUser(lenderUserId);
@@ -251,6 +266,15 @@ public class SystemAdminService {
 
     @Transactional
     public boolean permanentlyDeleteLender(Long userId) {
+        LenderProfile lenderProfile = getLenderProfile(userId);
+        List<LoanApplication> loanApplicationByLender = loanApplicationRepository.findLoanApplicationByLender(lenderProfile);
+        boolean existsActiveLoans = loanApplicationByLender.stream()
+                .anyMatch(x -> x.getStatus() == LoanStatus.APPROVED
+                        || x.getStatus() == LoanStatus.PENDING
+                        || x.getStatus() == LoanStatus.DISBURSED);
+        if (existsActiveLoans) {
+            throw new OperationNotAllowedException("Cannot deactivate lender as it has active loans");
+        }
         userService.deleteUser(userId);
         log.warn("Lender permanently deleted. ID: {}", userId);
         return true;

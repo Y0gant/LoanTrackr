@@ -201,7 +201,6 @@ public class UserService {
 
         if (user.isActive()) {
             user.setActive(false);
-            user.setDeletedAt(LocalDateTime.now());
             userRepository.save(user);
             log.warn("SUCCESS: User deactivated. ID: {}", id);
             return true;
