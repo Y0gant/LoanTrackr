@@ -11,7 +11,6 @@ import com.loantrackr.model.BorrowerKycDetails;
 import com.loantrackr.model.User;
 import com.loantrackr.repository.BankDetailsRepository;
 import com.loantrackr.repository.BorrowerKycDetailsRepository;
-import com.loantrackr.repository.LoanRepository;
 import lombok.AllArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.security.core.Authentication;
@@ -30,7 +29,6 @@ public class BorrowerService {
     private final ModelMapper mapper;
     private final BorrowerKycDetailsRepository kycDetails;
     private final BankDetailsRepository bankDetailsRepository;
-    private final LoanRepository loanRepository;
     private final LoanService loanService;
 
     public UserResponse createBorrower(RegisterBorrowerRequest userToRegister) {
