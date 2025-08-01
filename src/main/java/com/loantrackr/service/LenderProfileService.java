@@ -80,6 +80,13 @@ public class LenderProfileService {
         return lenderProfileOptional.get();
     }
 
+    public LenderProfile getCurrentLender() {
+        String userName = SecurityUtils.getCurrentUserName();
+        Optional<User> userByUserName = userService.getUserByUserName(userName);
+        if (userByUserName.isEmpty()) throw new UserNotFoundException("No user found for username: " + userName);
+        return getLenderById(userByUserName.get().getId());
+    }
+
 
     @Transactional
     public LenderSummaryResponse updateLenderProfile(LenderUpdateRequest request) {
