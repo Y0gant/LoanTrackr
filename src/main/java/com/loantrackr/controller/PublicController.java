@@ -5,10 +5,10 @@ import com.loantrackr.dto.request.LoginRequest;
 import com.loantrackr.dto.request.RegisterBorrowerRequest;
 import com.loantrackr.dto.request.RegisterUser;
 import com.loantrackr.dto.response.ApiResponse;
+import com.loantrackr.dto.response.LenderOnboardingResponse;
 import com.loantrackr.dto.response.UserResponse;
 import com.loantrackr.exception.OperationNotAllowedException;
 import com.loantrackr.exception.SetupLockedException;
-import com.loantrackr.model.LenderOnboarding;
 import com.loantrackr.model.User;
 import com.loantrackr.service.*;
 import jakarta.validation.Valid;
@@ -99,12 +99,11 @@ public class PublicController {
                 throw new SetupLockedException("System admin already exists");
             }
 
-            User initialSystemAdmin = adminService.createInitialSystemAdmin(lenderToRegister, otp);
-            UserResponse userResponse = mapToUserResponse(initialSystemAdmin);
+            UserResponse initialSystemAdmin = adminService.createInitialSystemAdmin(lenderToRegister, otp);
 
             log.info("System admin created successfully with ID: {}", initialSystemAdmin.getId());
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.success(userResponse, "System admin created successfully"));
+                    .body(ApiResponse.success(initialSystemAdmin, "System admin created successfully"));
 
         } catch (SetupLockedException e) {
             log.warn("Setup locked: {}", e.getMessage());
@@ -121,18 +120,6 @@ public class PublicController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Registration failed due to an unexpected error"));
         }
-    }
-
-    private UserResponse mapToUserResponse(User user) {
-        return UserResponse.builder()
-                .id(user.getId())
-                .email(user.getEmail())
-                .username(user.getUsername())
-                .role(user.getRole())
-                .isActive(user.isActive())
-                .isEmailVerified(user.isEmailVerified())
-                .provider(user.getProvider())
-                .build();
     }
 
     @GetMapping("/borrower/otp")
@@ -192,7 +179,7 @@ public class PublicController {
     @PostMapping(value = "/lender/application", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<Object>> lenderApplication(@Valid @ModelAttribute LenderOnboardingForm form) {
         try {
-            LenderOnboarding lenderOnboardingApplication = lenderProfileService.createLenderOnboardingApplication(form);
+            LenderOnboardingResponse lenderOnboardingApplication = lenderProfileService.createLenderOnboardingApplication(form);
             return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(lenderOnboardingApplication, "Application submitted successfully"));
         } catch (OperationNotAllowedException e) {
             log.error("Lender Application has a duplicate email");

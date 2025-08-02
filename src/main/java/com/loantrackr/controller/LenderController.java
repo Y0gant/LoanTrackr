@@ -2,9 +2,9 @@ package com.loantrackr.controller;
 
 import com.loantrackr.dto.request.LenderUpdateRequest;
 import com.loantrackr.dto.response.ApiResponse;
+import com.loantrackr.dto.response.LenderProfileResponse;
 import com.loantrackr.dto.response.LenderSummaryResponse;
 import com.loantrackr.exception.UserNotFoundException;
-import com.loantrackr.model.LenderProfile;
 import com.loantrackr.service.LenderProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +27,7 @@ public class LenderController {
         log.info("Request received to fetch lender profile ");
 
         try {
-            LenderProfile lenderProfile = lenderProfileService.getCurrentLender();
+            LenderProfileResponse lenderProfile = lenderProfileService.getCurrentLender();
 
             log.info("Successfully retrieved lender profile.");
             return ResponseEntity.ok(

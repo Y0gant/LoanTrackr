@@ -1,6 +1,8 @@
 package com.loantrackr.service;
 
 import com.loantrackr.dto.request.RegisterUser;
+import com.loantrackr.dto.response.LenderOnboardingResponse;
+import com.loantrackr.dto.response.LenderProfileResponse;
 import com.loantrackr.dto.response.UserResponse;
 import com.loantrackr.enums.LoanStatus;
 import com.loantrackr.enums.RequestStatus;
@@ -17,6 +19,7 @@ import com.loantrackr.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,9 +41,10 @@ public class SystemAdminService {
     private final OtpService otpService;
     private final ModelMapper modelMapper;
     private final LoanApplicationRepository loanApplicationRepository;
+    private final FileStorageService fileStorageService;
     public String systemEmail;
 
-    public SystemAdminService(UserService userService, UserRepository userRepository, LenderProfileRepository lenderProfileRepository, LenderOnboardingRepository onboardingRepository, EmailService emailService, LenderProfileService lenderProfileService, OtpService otpService, @Value("${bootstrap.email}") String firstEmail, ModelMapper modelMapper, LoanApplicationRepository loanApplicationRepository) {
+    public SystemAdminService(UserService userService, UserRepository userRepository, LenderProfileRepository lenderProfileRepository, LenderOnboardingRepository onboardingRepository, EmailService emailService, LenderProfileService lenderProfileService, OtpService otpService, @Value("${bootstrap.email}") String firstEmail, ModelMapper modelMapper, LoanApplicationRepository loanApplicationRepository, FileStorageService fileStorageService) {
         this.userService = userService;
         this.userRepository = userRepository;
         this.lenderProfileRepository = lenderProfileRepository;
@@ -51,6 +55,21 @@ public class SystemAdminService {
         this.systemEmail = firstEmail;
         this.modelMapper = modelMapper;
         this.loanApplicationRepository = loanApplicationRepository;
+        this.fileStorageService = fileStorageService;
+    }
+
+    public static UserResponse toUserResponse(User user) {
+        if (user == null) return null;
+
+        return UserResponse.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .provider(user.getProvider())
+                .isActive(user.isActive())
+                .isEmailVerified(user.isEmailVerified())
+                .build();
     }
 
     public boolean generateAndSendBootstrapOtp() {
@@ -65,7 +84,7 @@ public class SystemAdminService {
     }
 
     @Transactional
-    public User createInitialSystemAdmin(RegisterUser request, String otp) {
+    public UserResponse createInitialSystemAdmin(RegisterUser request, String otp) {
         log.info("Attempting to create initial SystemAdmin: {}", request.getEmail());
 
         otpService.validateOtp(systemEmail, otp);
@@ -81,9 +100,8 @@ public class SystemAdminService {
         User saved = userRepository.save(admin);
 
         log.info("Initial SystemAdmin created and verified. ID: {}", saved.getId());
-        return saved;
+        return toUserResponse(saved);
     }
-
 
     @Transactional
     public UserResponse createSystemAdmin(User requester, RegisterUser request) {
@@ -95,12 +113,11 @@ public class SystemAdminService {
         newAdmin.setVerified(false);
         newAdmin.setEmailVerified(true);
         User saved = userRepository.save(newAdmin);
-        UserResponse response = modelMapper.map(saved, UserResponse.class);
+        UserResponse response = toUserResponse(saved);
 
         log.info("New unverified SystemAdmin created. ID: {}, Created by: {}", saved.getId(), requester.getId());
         return response;
     }
-
 
     @Transactional
     public boolean verifySystemAdmin(User requester, Long targetId) {
@@ -110,7 +127,6 @@ public class SystemAdminService {
         log.info("SystemAdmin successfully verified. ID: {}, Verified by: {}", targetId, requester.getId());
         return verified;
     }
-
 
     @Transactional
     public boolean deleteSystemAdmin(User requester, Long targetId) {
@@ -144,7 +160,6 @@ public class SystemAdminService {
         return userRepository.findAllByRole(Role.SYSTEM_ADMIN);
     }
 
-
     private void validateVerifiedAdmin(User user) {
         if (user == null) {
             log.error("Access denied: Requester is null");
@@ -161,7 +176,6 @@ public class SystemAdminService {
             throw new UnauthorizedException("SystemAdmin is not verified.");
         }
     }
-
 
     //    Lender Verification And Management
     @Transactional
@@ -191,7 +205,6 @@ public class SystemAdminService {
         return onboardingRepository.findById(requestId)
                 .orElseThrow(() -> new UserNotFoundException("Request not found with ID: " + requestId));
     }
-
 
     @Transactional
     public boolean rejectLenderRequest(Long requestId, String reason) {
@@ -247,7 +260,6 @@ public class SystemAdminService {
         return onboardingRepository.findAllByStatus(status);
     }
 
-
     @Transactional
     public boolean deactivateLender(Long lenderUserId) {
         LenderProfile lenderProfile = getLenderProfile(lenderUserId);
@@ -280,8 +292,8 @@ public class SystemAdminService {
         return true;
     }
 
-    public List<User> getAllLenders() {
-        return userRepository.findAllByRole(Role.LENDER);
+    public List<LenderProfileResponse> getAllLenders() {
+        return lenderProfileRepository.findAll().stream().map((element) -> modelMapper.map(element, LenderProfileResponse.class)).toList();
     }
 
     public LenderProfile getLenderProfile(Long userId) {
@@ -289,4 +301,40 @@ public class SystemAdminService {
                 .orElseThrow(() -> new UserNotFoundException("Lender profile not found for user ID: " + userId));
     }
 
+    public LenderOnboardingResponse mapToResponse(LenderOnboarding onboarding) {
+        if (onboarding == null) return null;
+
+        return LenderOnboardingResponse.builder()
+                .id(onboarding.getId())
+                .username(onboarding.getUsername())
+                .email(onboarding.getEmail())
+                .contactPersonName(onboarding.getContactPersonName())
+                .organizationName(onboarding.getOrganizationName())
+                .gstin(onboarding.getGstin())
+                .rbiLicenseNumber(onboarding.getRbiLicenseNumber())
+                .gstCertificate(onboarding.getGstCertificate() != null && !onboarding.getGstCertificate().isBlank())
+                .panCard(onboarding.getPanCard() != null && !onboarding.getPanCard().isBlank())
+                .rbiLicense(onboarding.getRbiLicense() != null && !onboarding.getRbiLicenseNumber().isBlank())
+                .reviewed(onboarding.isReviewed())
+                .status(onboarding.getStatus())
+                .rejectionReason(onboarding.getRejectionReason())
+                .requestedAt(onboarding.getRequestedAt())
+                .processedAt(onboarding.getProcessedAt())
+                .build();
+    }
+
+
+    public Resource getLenderDocument(long lenderId, String document) {
+        LenderOnboarding lenderRequest = getLenderRequestDetails(lenderId);
+        if (document.equals("gst_certificate") && lenderRequest.getGstCertificate() != null && !lenderRequest.getGstCertificate().isBlank()) {
+            return fileStorageService.loadFile(lenderRequest.getGstCertificate());
+        } else if (document.equals("pan_card") && lenderRequest.getPanCard() != null && !lenderRequest.getPanCard().isBlank()) {
+            return fileStorageService.loadFile(lenderRequest.getPanCard());
+
+        } else if (document.equals("rbi_license") && lenderRequest.getRbiLicense() != null && !lenderRequest.getRbiLicense().isBlank()) {
+            return fileStorageService.loadFile(lenderRequest.getRbiLicense());
+        } else {
+            return null;
+        }
+    }
 }

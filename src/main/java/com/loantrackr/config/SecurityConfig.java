@@ -37,6 +37,7 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/swagger/**", "/api-docs/**").permitAll()
                         .requestMatchers("/v1/system-admin/**").hasRole("SYSTEM_ADMIN")
                         .requestMatchers("v1/borrower/**").hasRole("BORROWER")
+                        .requestMatchers("/v1/lender/**").hasRole("LENDER")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

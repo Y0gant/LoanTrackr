@@ -2,12 +2,14 @@ package com.loantrackr.controller;
 
 import com.loantrackr.dto.request.RegisterUser;
 import com.loantrackr.dto.response.ApiResponse;
+import com.loantrackr.dto.response.LenderProfileResponse;
 import com.loantrackr.dto.response.UserResponse;
 import com.loantrackr.enums.Role;
 import com.loantrackr.exception.InvalidRoleException;
 import com.loantrackr.exception.OperationNotAllowedException;
 import com.loantrackr.exception.UnauthorizedException;
 import com.loantrackr.exception.UserNotFoundException;
+import com.loantrackr.model.LenderOnboarding;
 import com.loantrackr.model.User;
 import com.loantrackr.service.SystemAdminService;
 import com.loantrackr.service.UserService;
@@ -22,6 +24,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -39,6 +42,7 @@ public class SystemAdminController {
 
     private final SystemAdminService adminService;
     private final UserService userService;
+    private final SystemAdminService systemAdminService;
 
     // System Admin Management Endpoints
 
@@ -236,7 +240,7 @@ public class SystemAdminController {
                     .body(ApiResponse.error("Failed to delete system administrator: " + e.getMessage()));
         }
     }
-    
+
 
     @PatchMapping("/lender/verify")
     @Operation(summary = "Verify lender",
@@ -504,6 +508,120 @@ public class SystemAdminController {
         }
     }
 
+    @GetMapping("/lender")
+    public ResponseEntity<ApiResponse<Object>> getLenderRequestById(@RequestParam long id) {
+        try {
+            LenderOnboarding lenderRequestDetails = systemAdminService.getLenderRequestDetails(id);
+            if (lenderRequestDetails != null) {
+                return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(lenderRequestDetails, "successfully retrieved lender request by id"));
+            }
+        } catch (OperationNotAllowedException e) {
+            log.warn("Operation not allowed: - {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Operation not allowed: " + e.getMessage()));
+
+        } catch (UserNotFoundException e) {
+            log.error("Lender request not found  {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Lender request not found: " + e.getMessage()));
+
+        } catch (IllegalStateException e) {
+            log.error("Illegal state while fetching lender request {}", id, e);
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED)
+                    .body(ApiResponse.error("System error: " + e.getMessage()));
+
+        } catch (Exception e) {
+            log.error("Unexpected error while fetching lender request with ID: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch lender request: " + e.getMessage()));
+        }
+        return null;
+    }
+
+    @GetMapping("/lender/{id}/document/gst-certificate")
+    public ResponseEntity<ApiResponse<Object>> getLenderGstCertificate(@PathVariable long id) {
+        try {
+            Resource gstCertificate = systemAdminService.getLenderDocument(id, "gst_certificate");
+            return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(gstCertificate, "Successfully retrieved gst certificate."));
+        } catch (OperationNotAllowedException e) {
+            log.warn("Operation not allowed:  {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Operation not allowed: " + e.getMessage()));
+
+        } catch (UserNotFoundException e) {
+            log.error("Lender request not found  {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Lender request not found: " + e.getMessage()));
+
+        } catch (IllegalStateException e) {
+            log.error("Illegal state while fetching lender request document {}", id, e);
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED)
+                    .body(ApiResponse.error("System error: " + e.getMessage()));
+
+        } catch (Exception e) {
+            log.error("Unexpected error while fetching lender document with ID: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch lender request: " + e.getMessage()));
+        }
+
+    }
+
+    @GetMapping("/lender/{id}/document/rbi-license")
+    public ResponseEntity<ApiResponse<Object>> getLenderRbiLicense(@PathVariable long id) {
+        try {
+            Resource rbiLicense = systemAdminService.getLenderDocument(id, "rbi_license");
+            return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(rbiLicense, "Successfully retrieved rbi license."));
+        } catch (OperationNotAllowedException e) {
+            log.warn("Operation not allowed:  {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Operation not allowed: " + e.getMessage()));
+
+        } catch (UserNotFoundException e) {
+            log.error("Lender request not found  {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Lender request not found: " + e.getMessage()));
+
+        } catch (IllegalStateException e) {
+            log.error("Illegal state while fetching lender request document {}", id, e);
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED)
+                    .body(ApiResponse.error("System error: " + e.getMessage()));
+
+        } catch (Exception e) {
+            log.error("Unexpected error while fetching lender document with ID: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch lender request: " + e.getMessage()));
+        }
+
+    }
+
+    @GetMapping("/lender/{id}/document/pan")
+    public ResponseEntity<ApiResponse<Object>> getLenderPanCard(@PathVariable long id) {
+        try {
+            Resource panCard = systemAdminService.getLenderDocument(id, "pan_card");
+            return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(panCard, "Successfully retrieved pan card."));
+        } catch (OperationNotAllowedException e) {
+            log.warn("Operation not allowed:  {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Operation not allowed: " + e.getMessage()));
+
+        } catch (UserNotFoundException e) {
+            log.error("Lender request not found  {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("Lender request not found: " + e.getMessage()));
+
+        } catch (IllegalStateException e) {
+            log.error("Illegal state while fetching lender request document {}", id, e);
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED)
+                    .body(ApiResponse.error("System error: " + e.getMessage()));
+
+        } catch (Exception e) {
+            log.error("Unexpected error while fetching lender document with ID: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to fetch lender request: " + e.getMessage()));
+        }
+
+    }
+
     @GetMapping("/lenders")
     @Operation(summary = "Get all lenders",
             description = "Retrieves a list of all lenders in the system")
@@ -517,7 +635,7 @@ public class SystemAdminController {
         log.info("Request received to fetch all lenders");
 
         try {
-            List<User> allLenders = adminService.getAllLenders();
+            List<LenderProfileResponse> allLenders = adminService.getAllLenders();
             log.info("Successfully retrieved {} lenders", allLenders.size());
 
             return ResponseEntity.ok()

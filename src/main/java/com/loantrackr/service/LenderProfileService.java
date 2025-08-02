@@ -2,6 +2,8 @@ package com.loantrackr.service;
 
 import com.loantrackr.dto.request.LenderOnboardingForm;
 import com.loantrackr.dto.request.LenderUpdateRequest;
+import com.loantrackr.dto.response.LenderOnboardingResponse;
+import com.loantrackr.dto.response.LenderProfileResponse;
 import com.loantrackr.dto.response.LenderSummaryResponse;
 import com.loantrackr.enums.RequestStatus;
 import com.loantrackr.exception.OperationNotAllowedException;
@@ -15,6 +17,7 @@ import com.loantrackr.util.SecurityUtils;
 import com.loantrackr.util.TenureUtils;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -32,9 +35,10 @@ public class LenderProfileService {
     private final UserService userService;
     private final LenderOnboardingRepository lenderOnboardingRepository;
     private final FileStorageService storageService;
+    private final ModelMapper modelMapper;
 
     @Transactional
-    public LenderOnboarding createLenderOnboardingApplication(LenderOnboardingForm form) {
+    public LenderOnboardingResponse createLenderOnboardingApplication(LenderOnboardingForm form) {
         Optional<User> userByEmail = userService.getUserByEmail(form.getEmail());
         if (userByEmail.isPresent()) {
             throw new OperationNotAllowedException("A user already exists with email :" + form.getEmail());
@@ -56,7 +60,8 @@ public class LenderProfileService {
                 .reviewed(false)
                 .status(RequestStatus.PENDING)
                 .build();
-        return lenderOnboardingRepository.save(onboarding);
+        LenderOnboarding saved = lenderOnboardingRepository.save(onboarding);
+        return modelMapper.map(saved, LenderOnboardingResponse.class);
     }
 
     @Transactional
@@ -80,11 +85,11 @@ public class LenderProfileService {
         return lenderProfileOptional.get();
     }
 
-    public LenderProfile getCurrentLender() {
+    public LenderProfileResponse getCurrentLender() {
         String userName = SecurityUtils.getCurrentUserName();
         Optional<User> userByUserName = userService.getUserByUserName(userName);
         if (userByUserName.isEmpty()) throw new UserNotFoundException("No user found for username: " + userName);
-        return getLenderById(userByUserName.get().getId());
+        return mapToResponse(getLenderById(userByUserName.get().getId()));
     }
 
 
@@ -134,13 +139,34 @@ public class LenderProfileService {
             LenderProfile byUser = lenderProfileRepository.findByUser(userByUserName.get());
             byUser.setVerified(false);
             lenderProfileRepository.save(byUser);
-            userService.deleteUser(byUser.getId());
+            return userService.deleteUser(byUser.getId());
 
         } catch (RuntimeException e) {
             log.error("Unable to delete lender with username : {}", userName);
             throw e;
         }
-        return true;
     }
+
+    public LenderProfileResponse mapToResponse(LenderProfile lenderProfile) {
+        User user = lenderProfile.getUser();
+
+        return LenderProfileResponse.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .role(user.getRole().name())
+                .isEmailVerified(user.isEmailVerified())
+                .isActive(user.isActive())
+
+                .gstin(lenderProfile.getGstin())
+                .rbiLicenseNumber(lenderProfile.getRbiLicenseNumber())
+                .organizationName(lenderProfile.getOrganizationName())
+                .isVerified(lenderProfile.isVerified())
+                .interestRate(lenderProfile.getInterestRate())
+                .processingFee(lenderProfile.getProcessingFee())
+                .supportedTenures(lenderProfile.getSupportedTenures())
+                .build();
+    }
+
 
 }
