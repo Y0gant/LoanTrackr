@@ -48,10 +48,12 @@ public class LoanService {
     private final UserService userService;
 
 
-    public List<LenderSummaryResponse> getAllLenders() {
+    public List<LenderSummaryResponse> getAllActiveLenderResponses() {
         log.info("Fetching all lenders");
         try {
-            List<LenderSummaryResponse> lenders = lenderRepository.findAll().stream().map(this::mapToSummary).toList();
+            List<LenderSummaryResponse> lenders = lenderRepository.findAll().stream()
+                    .filter(lender -> lender.isVerified() && lender.getUser().isActive() && lender.getUser().isVerified())
+                    .map(this::mapToSummary).toList();
             log.info("Successfully retrieved {} lenders", lenders.size());
             return lenders;
         } catch (Exception e) {
@@ -635,5 +637,233 @@ public class LoanService {
         Loan loan = loanRepository.findById(loanId).orElseThrow(() -> new NoSuchElementException("Loan not found"));
 
         return paymentRepository.findByLoanOrderByCreatedAtDesc(loan);
+    }
+
+    public List<LoanApplicationResponseForLender> getMyLoanRequests() {
+        String username = SecurityUtils.getCurrentUserName();
+        log.info("Fetching loan requests for lender: {}", username);
+
+        try {
+            User user = userService.getUserByUserName(username)
+                    .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+            if (!user.getRole().equals(Role.LENDER)) {
+                log.warn("Non-lender user {} attempted to view loan requests", username);
+                throw new UnauthorizedException("Only lenders can view loan requests");
+            }
+
+            LenderProfile lender = lenderService.getLenderById(user.getId());
+
+            List<LoanApplicationResponseForLender> applications = loanApplicationRepository
+                    .findByLenderId(lender.getId())
+                    .stream()
+                    .map(this::mapToLoanApplicationResponseForLender)
+                    .toList();
+
+            log.info("Retrieved {} loan requests for lender: {}", applications.size(), username);
+            return applications;
+
+        } catch (UserNotFoundException | UnauthorizedException e) {
+            log.error("Failed to fetch loan requests for lender: {} - {}", username, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error fetching loan requests for lender: {}", username, e);
+            throw e;
+        }
+    }
+
+
+    public List<LoanApplicationResponseForLender> getLoanRequestsByStatus(LoanStatus status) {
+        String username = SecurityUtils.getCurrentUserName();
+        log.info("Fetching {} loan requests for lender: {}", status, username);
+
+        try {
+            User user = userService.getUserByUserName(username)
+                    .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+            if (!user.getRole().equals(Role.LENDER)) {
+                log.warn("Non-lender user {} attempted to view loan requests", username);
+                throw new UnauthorizedException("Only lenders can view loan requests");
+            }
+
+            LenderProfile lender = lenderService.getLenderById(user.getId());
+
+            List<LoanApplicationResponseForLender> applications = loanApplicationRepository
+                    .findByLenderIdAndStatus(lender.getId(), status)
+                    .stream()
+                    .map(this::mapToLoanApplicationResponseForLender)
+                    .toList();
+
+            log.info("Retrieved {} {} loan requests for lender: {}", applications.size(), status, username);
+            return applications;
+
+        } catch (UserNotFoundException | UnauthorizedException e) {
+            log.error("Failed to fetch {} loan requests for lender: {} - {}", status, username, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error fetching {} loan requests for lender: {}", status, username, e);
+            throw e;
+        }
+    }
+
+
+    public List<LoanApplicationResponseForLender> getApprovedLoans() {
+        return getLoanRequestsByStatus(LoanStatus.APPROVED);
+    }
+
+
+    public List<LoanApplicationResponseForLender> getRejectedLoans() {
+        return getLoanRequestsByStatus(LoanStatus.REJECTED);
+    }
+
+
+    public List<LoanApplicationResponseForLender> getDisbursedLoans() {
+        return getLoanRequestsByStatus(LoanStatus.DISBURSED);
+    }
+
+
+    public List<LoanApplicationResponseForLender> getPendingLoans() {
+        return getLoanRequestsByStatus(LoanStatus.PENDING);
+    }
+
+
+    public List<LoanDetailsResponse> getCurrentLenderActiveLoans() {
+        String username = SecurityUtils.getCurrentUserName();
+        log.info("Fetching active loans for lender: {}", username);
+
+        try {
+            User user = userService.getUserByUserName(username)
+                    .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+            if (!user.getRole().equals(Role.LENDER)) {
+                log.warn("Non-lender user {} attempted to view active loans", username);
+                throw new UnauthorizedException("Only lenders can view active loans");
+            }
+
+            LenderProfile lender = lenderService.getLenderById(user.getId());
+
+            List<LoanDetailsResponse> loans = loanRepository
+                    .findByLenderIdAndStatus(lender.getId(), LoanStatus.DISBURSED)
+                    .stream()
+                    .map(this::mapToLoanDetailsResponse)
+                    .toList();
+
+            log.info("Retrieved {} active loans for lender: {}", loans.size(), username);
+            return loans;
+
+        } catch (UserNotFoundException | UnauthorizedException e) {
+            log.error("Failed to fetch active loans for lender: {} - {}", username, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error fetching active loans for lender: {}", username, e);
+            throw e;
+        }
+    }
+
+    public List<LoanDetailsResponse> getCompletedLoans() {
+        String username = SecurityUtils.getCurrentUserName();
+        log.info("Fetching completed loans for lender: {}", username);
+
+        try {
+            User user = userService.getUserByUserName(username)
+                    .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+            if (!user.getRole().equals(Role.LENDER)) {
+                log.warn("Non-lender user {} attempted to view completed loans", username);
+                throw new UnauthorizedException("Only lenders can view completed loans");
+            }
+
+            LenderProfile lender = lenderService.getLenderById(user.getId());
+
+            List<LoanDetailsResponse> loans = loanRepository
+                    .findByLenderIdAndStatus(lender.getId(), LoanStatus.CLOSED)
+                    .stream()
+                    .map(this::mapToLoanDetailsResponse)
+                    .toList();
+
+            log.info("Retrieved {} completed loans for lender: {}", loans.size(), username);
+            return loans;
+
+        } catch (UserNotFoundException | UnauthorizedException e) {
+            log.error("Failed to fetch completed loans for lender: {} - {}", username, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error fetching completed loans for lender: {}", username, e);
+            throw e;
+        }
+    }
+
+
+    public LoanDetailsResponse getLoanById(Long loanId) {
+        String username = SecurityUtils.getCurrentUserName();
+        log.info("Fetching loan details for loan ID: {} by lender: {}", loanId, username);
+
+        try {
+            User user = userService.getUserByUserName(username)
+                    .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+            if (!user.getRole().equals(Role.LENDER)) {
+                log.warn("Non-lender user {} attempted to view loan details", username);
+                throw new UnauthorizedException("Only lenders can view loan details");
+            }
+
+            LenderProfile lender = lenderService.getLenderById(user.getId());
+
+            Loan loan = loanRepository.findById(loanId)
+                    .orElseThrow(() -> new NoSuchElementException("Loan not found"));
+
+            if (!loan.getLender().getId().equals(lender.getId())) {
+                log.warn("Lender {} attempted to access loan {} that doesn't belong to them", username, loanId);
+                throw new UnauthorizedException("You can only view loans associated with your organization");
+            }
+
+            LoanDetailsResponse response = mapToLoanDetailsResponse(loan);
+            log.info("Retrieved loan details for loan ID: {}", loanId);
+            return response;
+
+        } catch (UserNotFoundException | UnauthorizedException | NoSuchElementException e) {
+            log.error("Failed to fetch loan details for loan ID: {} - {}", loanId, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error fetching loan details for loan ID: {}", loanId, e);
+            throw e;
+        }
+    }
+
+
+    private LoanDetailsResponse mapToLoanDetailsResponse(Loan loan) {
+        return LoanDetailsResponse.builder()
+                .loanId(loan.getId())
+                .borrowerName(loan.getBorrower().getUsername())
+                .principalAmount(loan.getPrincipalAmount())
+                .totalAmountToRepay(loan.getTotalAmountToRepay())
+                .remainingAmount(loan.getRemainingAmount())
+                .totalInterestAmount(loan.getTotalInterestAmount())
+                .totalInstallments(loan.getTotalInstallments())
+                .paidInstallments(loan.getPaidInstallments())
+                .nextDueDate(loan.getNextDueDate())
+                .status(loan.getStatus())
+                .disbursedAt(loan.getDisbursedAt())
+                .isFullyRepaid(loan.isFullyRepaid())
+                .build();
+    }
+
+    private LoanApplicationResponseForLender mapToLoanApplicationResponseForLender(LoanApplication application) {
+        return LoanApplicationResponseForLender.builder()
+                .applicationId(application.getId())
+                .loanAmount(application.getLoanRequested())
+                .tenure(application.getTenure())
+                .emi(application.getEmiAmount())
+                .interestRate(application.getInterestRate())
+                .processingFee(application.getProcessingFee())
+                .status(application.getStatus())
+                .lenderName(application.getLender().getOrganizationName())
+                .appliedAt(application.getAppliedAt())
+                .purpose(application.getPurpose())
+                .borrowerName(application.getUser().getUsername())
+                .borrowerEmail(application.getUser().getEmail())
+                .monthlyIncome(application.getMonthlyIncome())
+                .incomeSource(application.getIncomeSource())
+                .build();
     }
 }

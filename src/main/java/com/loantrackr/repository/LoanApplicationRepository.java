@@ -16,4 +16,11 @@ public interface LoanApplicationRepository extends JpaRepository<LoanApplication
     Collection<LoanApplication> findByUserId(Long id);
 
     List<LoanApplication> findLoanApplicationByLender(LenderProfile lender);
+
+    List<LoanApplication> findByLenderId(Long lenderId);
+
+    List<LoanApplication> findByLenderIdAndStatus(Long lenderId, LoanStatus status);
+
+    long countByLenderIdAndStatus(Long lenderId, LoanStatus status);
+
 }

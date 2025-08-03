@@ -1,27 +1,41 @@
 package com.loantrackr.controller;
 
 import com.loantrackr.dto.request.KycUpdateRequest;
+import com.loantrackr.dto.request.LoanApplicationRequest;
+import com.loantrackr.dto.request.PaymentRequest;
 import com.loantrackr.dto.request.UpdateUserRequest;
-import com.loantrackr.dto.response.ApiResponse;
-import com.loantrackr.dto.response.UserResponse;
+import com.loantrackr.dto.response.*;
 import com.loantrackr.exception.OperationNotAllowedException;
 import com.loantrackr.exception.UserNotFoundException;
 import com.loantrackr.model.BorrowerKycDetails;
+import com.loantrackr.model.LoanPayment;
+import com.loantrackr.model.LoanRepaymentSchedule;
 import com.loantrackr.service.BorrowerService;
+import com.loantrackr.service.LoanService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
+import java.util.List;
 
 @RestController
 @RequestMapping("/v1/borrower")
+@PreAuthorize("hasRole('BORROWER')")
+@Validated
 @RequiredArgsConstructor
 @Slf4j
 public class BorrowerController {
 
     private final BorrowerService borrowerService;
+    private final LoanService loanService;
 
 
     @GetMapping("/info")
@@ -152,4 +166,83 @@ public class BorrowerController {
         }
     }
 
+    //Loan
+
+
+    @GetMapping("/loan/lenders")
+    public ResponseEntity<List<LenderSummaryResponse>> getAllActiveLenders() {
+        log.info("REST: Fetching all active lenders");
+        List<LenderSummaryResponse> lenders = loanService.getAllActiveLenderResponses();
+        return ResponseEntity.ok(lenders);
+    }
+
+    @GetMapping("/loan/lenders/{lenderId}/emi-preview")
+    public ResponseEntity<EmiPreview> previewEmi(
+            @PathVariable Long lenderId,
+            @RequestParam @DecimalMin(value = "1000.00", message = "Principal amount must be at least 1000") BigDecimal principal,
+            @RequestParam @Min(value = 6, message = "Tenure must be at least 6 months") int tenure) {
+
+        log.info("REST: EMI preview request - Lender: {}, Principal: {}, Tenure: {}", lenderId, principal, tenure);
+        EmiPreview preview = loanService.previewEmiFor(lenderId, principal, tenure);
+        return ResponseEntity.ok(preview);
+    }
+
+    @PostMapping("/loan/apply/{lenderId}")
+    public ResponseEntity<LoanApplicationResponse> applyForLoan(
+            @PathVariable Long lenderId,
+            @Valid @RequestBody LoanApplicationRequest request) {
+
+        log.info("REST: Loan application request - Lender: {}, Amount: {}", lenderId, request.getLoanAmount());
+        LoanApplicationResponse response = loanService.applyLoan(lenderId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PutMapping("/loan/applications/withdraw")
+    public ResponseEntity<String> withdrawLoanApplication() {
+        log.info("REST: Loan withdrawal request");
+        boolean withdrawn = loanService.withdrawLoan();
+
+        if (withdrawn) {
+            return ResponseEntity.ok("Loan application withdrawn successfully");
+        } else {
+            return ResponseEntity.badRequest().body("Failed to withdraw loan application");
+        }
+    }
+
+
+    @GetMapping("/loan/applications/my")
+    public ResponseEntity<List<LoanApplicationResponse>> getMyLoanApplications() {
+        log.info("REST: Fetching user's loan applications");
+        List<LoanApplicationResponse> applications = loanService.getMyLoanApplications();
+        return ResponseEntity.ok(applications);
+    }
+
+    @GetMapping("/loan/{loanId}/payments/history")
+    public ResponseEntity<List<LoanPayment>> getPaymentHistory(@PathVariable Long loanId) {
+        UserResponse info = borrowerService.getInfo();
+        log.info("REST: Payment history request - Loan ID: {}", loanId);
+        LoanDetailsResponse loanById = loanService.getLoanById(loanId);
+        if (!loanById.getBorrowerName().equals(info.getUsername())) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        }
+        List<LoanPayment> history = loanService.getPaymentHistory(loanId);
+        return ResponseEntity.ok(history);
+    }
+
+    @GetMapping("/loan/{loanId}/schedule")
+    public ResponseEntity<List<LoanRepaymentSchedule>> getPaymentSchedule(@PathVariable Long loanId) {
+        log.info("REST: Payment schedule request - Loan ID: {}", loanId);
+        List<LoanRepaymentSchedule> schedule = loanService.getPaymentSchedule(loanId);
+        return ResponseEntity.ok(schedule);
+    }
+
+    @PostMapping("/loan/{loanId}/payments")
+    public ResponseEntity<PaymentResponse> makePayment(
+            @PathVariable Long loanId,
+            @Valid @RequestBody PaymentRequest request) {
+
+        log.info("REST: Payment request - Loan ID: {}, Amount: {}", loanId, request.getAmount());
+        PaymentResponse response = loanService.makePayment(loanId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
 }

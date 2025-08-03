@@ -21,4 +21,8 @@ public interface LoanRepository extends JpaRepository<Loan, Long> {
     @Query("SELECT l FROM Loan l WHERE l.nextDueDate = :dueDate AND l.status = :status")
     List<Loan> findByNextDueDateAndStatus(@Param("dueDate") LocalDate dueDate,
                                           @Param("status") LoanStatus status);
+
+    List<Loan> findByLenderIdAndStatus(Long lenderId, LoanStatus status);
+
+
 }
