@@ -11,6 +11,12 @@ import com.loantrackr.exception.OperationNotAllowedException;
 import com.loantrackr.exception.SetupLockedException;
 import com.loantrackr.model.User;
 import com.loantrackr.service.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +34,8 @@ import java.util.Optional;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/v1/public")
+@Tag(name = "Public Authentication and Registration",
+        description = "Public endpoints for user authentication, admin bootstrap, and account registration")
 public class PublicController {
 
     private final SystemAdminService adminService;
@@ -39,7 +47,27 @@ public class PublicController {
 
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<String>> authenticate(@RequestBody @Valid LoginRequest request) {
+    @Operation(summary = "Authenticate user",
+            description = "Authenticates user credentials and returns JWT token for API access")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "User authenticated successfully",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "Invalid credentials"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "500",
+                    description = "Internal server error"
+            )
+    })
+    public ResponseEntity<ApiResponse<String>> authenticate(
+            @Parameter(description = "User login credentials")
+            @RequestBody @Valid LoginRequest request) {
+
         try {
             log.info("trying to login user and generate JWT token");
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword()));
@@ -53,6 +81,22 @@ public class PublicController {
     }
 
     @GetMapping("/bootstrap/admin/start")
+    @Operation(summary = "Start admin bootstrap process",
+            description = "Generates and sends OTP to system email for initial admin account creation")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "OTP sent successfully"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "System setup already completed"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "500",
+                    description = "Failed to generate/send OTP"
+            )
+    })
     public ResponseEntity<ApiResponse<Boolean>> generateOtp() {
         try {
             log.info("Attempting to generate bootstrap OTP");
@@ -86,8 +130,27 @@ public class PublicController {
     }
 
     @PostMapping("/bootstrap/admin/register")
+    @Operation(summary = "Complete admin bootstrap registration",
+            description = "Creates the initial system administrator account using OTP verification")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "201",
+                    description = "System admin created successfully",
+                    content = @Content(schema = @Schema(implementation = UserResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid registration data or OTP"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "System setup already completed"
+            )
+    })
     public ResponseEntity<ApiResponse<UserResponse>> bootstrapProject(
+            @Parameter(description = "Admin registration details")
             @Valid @RequestBody RegisterUser lenderToRegister,
+            @Parameter(description = "OTP received via email")
             @RequestParam String otp) {
 
         try {
@@ -123,7 +186,26 @@ public class PublicController {
     }
 
     @GetMapping("/borrower/otp")
-    public ResponseEntity<ApiResponse<Object>> getBorrowerOtp(@RequestParam @Email String email) {
+    @Operation(summary = "Generate OTP for borrower registration",
+            description = "Sends OTP to email address for borrower account verification")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "OTP sent successfully"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "Email already exists"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "500",
+                    description = "Failed to send OTP"
+            )
+    })
+    public ResponseEntity<ApiResponse<Object>> getBorrowerOtp(
+            @Parameter(description = "Email address for OTP delivery")
+            @RequestParam @Email String email) {
+
         try {
             log.info("Attempting to generate OTP for borrower's email :{}", email);
 
@@ -154,7 +236,29 @@ public class PublicController {
     }
 
     @PostMapping("/borrower")
-    public ResponseEntity<ApiResponse<Object>> createBorrower(@Valid @RequestBody RegisterBorrowerRequest userToRegister, @RequestParam String otp) {
+    @Operation(summary = "Register new borrower account",
+            description = "Creates a new borrower account after OTP verification")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Borrower account created successfully",
+                    content = @Content(schema = @Schema(implementation = UserResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid registration data"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "Invalid or expired OTP"
+            )
+    })
+    public ResponseEntity<ApiResponse<Object>> createBorrower(
+            @Parameter(description = "Borrower registration details")
+            @Valid @RequestBody RegisterBorrowerRequest userToRegister,
+            @Parameter(description = "OTP received via email")
+            @RequestParam String otp) {
+
         try {
             log.info("Attempting to create borrower with username :{} and email :{}", userToRegister.getUsername(), userToRegister.getEmail());
             boolean emailVerified = otpService.validateOtp(userToRegister.getEmail(), otp);
@@ -177,7 +281,27 @@ public class PublicController {
     }
 
     @PostMapping(value = "/lender/application", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<Object>> lenderApplication(@Valid @ModelAttribute LenderOnboardingForm form) {
+    @Operation(summary = "Submit lender onboarding application",
+            description = "Submits a lender application with required documents for system admin review")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "201",
+                    description = "Application submitted successfully",
+                    content = @Content(schema = @Schema(implementation = LenderOnboardingResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "409",
+                    description = "Email already exists in system"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "500",
+                    description = "Application submission failed"
+            )
+    })
+    public ResponseEntity<ApiResponse<Object>> lenderApplication(
+            @Parameter(description = "Lender onboarding form with documents")
+            @Valid @ModelAttribute LenderOnboardingForm form) {
+
         try {
             LenderOnboardingResponse lenderOnboardingApplication = lenderProfileService.createLenderOnboardingApplication(form);
             return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(lenderOnboardingApplication, "Application submitted successfully"));

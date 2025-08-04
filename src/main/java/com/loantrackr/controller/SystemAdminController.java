@@ -509,7 +509,27 @@ public class SystemAdminController {
     }
 
     @GetMapping("/lender")
-    public ResponseEntity<ApiResponse<Object>> getLenderRequestById(@RequestParam long id) {
+    @Operation(summary = "Get lender request details",
+            description = "Retrieves detailed information for a specific lender onboarding request")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Lender request details retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = LenderOnboarding.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Lender request not found"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "Operation not allowed"
+            )
+    })
+    public ResponseEntity<ApiResponse<Object>> getLenderRequestById(
+            @Parameter(description = "Lender request ID")
+            @RequestParam long id) {
+
         try {
             LenderOnboarding lenderRequestDetails = systemAdminService.getLenderRequestDetails(id);
             if (lenderRequestDetails != null) {
@@ -539,7 +559,27 @@ public class SystemAdminController {
     }
 
     @GetMapping("/lender/{id}/document/gst-certificate")
-    public ResponseEntity<ApiResponse<Object>> getLenderGstCertificate(@PathVariable long id) {
+    @Operation(summary = "Get lender GST certificate",
+            description = "Downloads the GST certificate document for a specific lender request")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "GST certificate retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = Resource.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Lender request not found"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "Operation not allowed"
+            )
+    })
+    public ResponseEntity<ApiResponse<Object>> getLenderGstCertificate(
+            @Parameter(description = "Lender request ID")
+            @PathVariable long id) {
+
         try {
             Resource gstCertificate = systemAdminService.getLenderDocument(id, "gst_certificate");
             return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(gstCertificate, "Successfully retrieved gst certificate."));
@@ -567,7 +607,26 @@ public class SystemAdminController {
     }
 
     @GetMapping("/lender/{id}/document/rbi-license")
-    public ResponseEntity<ApiResponse<Object>> getLenderRbiLicense(@PathVariable long id) {
+    @Operation(summary = "Get lender RBI license",
+            description = "Downloads the RBI license document for a specific lender request")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "RBI license retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = Resource.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Lender request not found"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "Operation not allowed"
+            )
+    })
+    public ResponseEntity<ApiResponse<Object>> getLenderRbiLicense(
+            @Parameter(description = "Lender request ID")
+            @PathVariable long id) {
         try {
             Resource rbiLicense = systemAdminService.getLenderDocument(id, "rbi_license");
             return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(rbiLicense, "Successfully retrieved rbi license."));
@@ -595,7 +654,27 @@ public class SystemAdminController {
     }
 
     @GetMapping("/lender/{id}/document/pan")
-    public ResponseEntity<ApiResponse<Object>> getLenderPanCard(@PathVariable long id) {
+    @Operation(summary = "Get lender PAN card",
+            description = "Downloads the PAN card document for a specific lender request")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "PAN card retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = Resource.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Lender request not found"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "Operation not allowed"
+            )
+    })
+    public ResponseEntity<ApiResponse<Object>> getLenderPanCard(
+            @Parameter(description = "Lender request ID")
+            @PathVariable long id) {
+
         try {
             Resource panCard = systemAdminService.getLenderDocument(id, "pan_card");
             return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(panCard, "Successfully retrieved pan card."));

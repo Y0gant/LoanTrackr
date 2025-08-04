@@ -6,6 +6,13 @@ import com.loantrackr.enums.LoanStatus;
 import com.loantrackr.exception.UserNotFoundException;
 import com.loantrackr.service.LenderProfileService;
 import com.loantrackr.service.LoanService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,12 +30,32 @@ import java.util.List;
 @PreAuthorize("hasRole('LENDER')")
 @Validated
 @RequiredArgsConstructor
+@Tag(name = "Lender Profile and Loan Management",
+        description = "APIs for lender profile operations and loan application management")
+@SecurityRequirement(name = "bearerAuth")
 public class LenderController {
 
     private final LenderProfileService lenderProfileService;
     private final LoanService loanService;
 
     @GetMapping("/info")
+    @Operation(summary = "Get lender profile information",
+            description = "Retrieves the current lender's profile details and business information")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Lender profile retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = LenderProfileResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "Lender not found"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "500",
+                    description = "Internal server error"
+            )
+    })
     public ResponseEntity<ApiResponse<Object>> getLenderById() {
 
         log.info("Request received to fetch lender profile ");
@@ -53,8 +80,27 @@ public class LenderController {
     }
 
     @PatchMapping("/update")
+    @Operation(summary = "Update lender profile",
+            description = "Updates the current lender's profile information")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Lender profile updated successfully",
+                    content = @Content(schema = @Schema(implementation = LenderSummaryResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "Lender not found"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid update data"
+            )
+    })
     public ResponseEntity<ApiResponse<Object>> updateLenderProfile(
+            @Parameter(description = "Lender profile update details")
             @Valid @RequestBody LenderUpdateRequest request) {
+
 
         log.info("Request received to update lender profile");
 
@@ -80,6 +126,22 @@ public class LenderController {
     }
 
     @DeleteMapping("/delete")
+    @Operation(summary = "Delete lender profile",
+            description = "Soft deletes the current lender's profile and account")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "202",
+                    description = "Lender profile deleted successfully"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "Lender not found"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "500",
+                    description = "Internal server error"
+            )
+    })
     public ResponseEntity<ApiResponse<Object>> deleteLender() {
         log.info("Request received to delete current lender profile");
 
@@ -104,7 +166,26 @@ public class LenderController {
 
 
     @PutMapping("/applications/{applicationId}/approve")
-    public ResponseEntity<LoanApplicationResponse> approveLoan(@PathVariable Long applicationId) {
+    @Operation(summary = "Approve loan application",
+            description = "Approves a pending loan application and sets it ready for disbursement")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Loan application approved successfully",
+                    content = @Content(schema = @Schema(implementation = LoanApplicationResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "Loan application not found"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Loan application cannot be approved"
+            )
+    })
+    public ResponseEntity<LoanApplicationResponse> approveLoan(
+            @Parameter(description = "Loan application ID to approve")
+            @PathVariable Long applicationId) {
         log.info("REST: Loan approval request - Application ID: {}", applicationId);
         LoanApplicationResponse response = loanService.approveLoan(applicationId);
         return ResponseEntity.ok(response);
@@ -112,20 +193,67 @@ public class LenderController {
 
 
     @PutMapping("/applications/{applicationId}/reject")
-    public ResponseEntity<LoanApplicationResponse> rejectLoan(@PathVariable Long applicationId) {
+    @Operation(summary = "Reject loan application",
+            description = "Rejects a pending loan application with rejection reason")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Loan application rejected successfully",
+                    content = @Content(schema = @Schema(implementation = LoanApplicationResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "Loan application not found"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Loan application cannot be rejected"
+            )
+    })
+    public ResponseEntity<LoanApplicationResponse> rejectLoan(
+            @Parameter(description = "Loan application ID to reject")
+            @PathVariable Long applicationId) {
         log.info("REST: Loan rejection request - Application ID: {}", applicationId);
         LoanApplicationResponse response = loanService.rejectLoan(applicationId);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/applications/{applicationId}/disburse")
-    public ResponseEntity<LoanDisbursementResponse> disburseLoan(@PathVariable Long applicationId) {
+    @Operation(summary = "Disburse approved loan",
+            description = "Disburses funds for an approved loan application and activates the loan")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "201",
+                    description = "Loan disbursed successfully",
+                    content = @Content(schema = @Schema(implementation = LoanDisbursementResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "Loan application not found"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Loan not ready for disbursement"
+            )
+    })
+    public ResponseEntity<LoanDisbursementResponse> disburseLoan(
+            @Parameter(description = "Loan application ID to disburse")
+            @PathVariable Long applicationId) {
         log.info("REST: Loan disbursement request - Application ID: {}", applicationId);
         LoanDisbursementResponse response = loanService.disburseLoan(applicationId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/applications")
+    @Operation(summary = "Get all loan requests",
+            description = "Retrieves all loan applications submitted to the current lender")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Loan requests retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = LoanApplicationResponseForLender.class))
+            )
+    })
     public ResponseEntity<List<LoanApplicationResponseForLender>> getMyLoanRequests() {
         log.info("REST: Fetching all loan requests for current lender");
 
@@ -137,7 +265,17 @@ public class LenderController {
 
 
     @GetMapping("/applications/status/{status}")
+    @Operation(summary = "Get loan requests by status",
+            description = "Retrieves loan applications filtered by specific status")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Loan requests retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = LoanApplicationResponseForLender.class))
+            )
+    })
     public ResponseEntity<List<LoanApplicationResponseForLender>> getLoanRequestsByStatus(
+            @Parameter(description = "Loan status to filter by")
             @PathVariable LoanStatus status) {
         log.info("REST: Fetching loan requests with status: {}", status);
 
@@ -149,6 +287,15 @@ public class LenderController {
 
 
     @GetMapping("/applications/pending")
+    @Operation(summary = "Get pending loan applications",
+            description = "Retrieves all loan applications awaiting lender review")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Pending loan applications retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = LoanApplicationResponseForLender.class))
+            )
+    })
     public ResponseEntity<List<LoanApplicationResponseForLender>> getPendingLoans() {
         log.info("REST: Fetching pending loan applications");
 
@@ -159,6 +306,15 @@ public class LenderController {
     }
 
     @GetMapping("/applications/approved")
+    @Operation(summary = "Get approved loan applications",
+            description = "Retrieves all loan applications that have been approved")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Approved loan applications retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = LoanApplicationResponseForLender.class))
+            )
+    })
     public ResponseEntity<List<LoanApplicationResponseForLender>> getApprovedLoans() {
         log.info("REST: Fetching approved loan applications");
 
@@ -170,6 +326,15 @@ public class LenderController {
 
 
     @GetMapping("/applications/rejected")
+    @Operation(summary = "Get rejected loan applications",
+            description = "Retrieves all loan applications that have been rejected")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Rejected loan applications retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = LoanApplicationResponseForLender.class))
+            )
+    })
     public ResponseEntity<List<LoanApplicationResponseForLender>> getRejectedLoans() {
         log.info("REST: Fetching rejected loan applications");
 
@@ -181,6 +346,15 @@ public class LenderController {
 
 
     @GetMapping("/applications/disbursed")
+    @Operation(summary = "Get disbursed loan applications",
+            description = "Retrieves all loan applications that have been disbursed")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Disbursed loan applications retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = LoanApplicationResponseForLender.class))
+            )
+    })
     public ResponseEntity<List<LoanApplicationResponseForLender>> getDisbursedLoans() {
         log.info("REST: Fetching disbursed loan applications");
 
@@ -192,6 +366,15 @@ public class LenderController {
 
 
     @GetMapping("/loan/active")
+    @Operation(summary = "Get active loans",
+            description = "Retrieves all currently active loans for the lender")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Active loans retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = LoanDetailsResponse.class))
+            )
+    })
     public ResponseEntity<List<LoanDetailsResponse>> getActiveLoanDetails() {
         log.info("REST: Fetching active loan details");
 
@@ -203,6 +386,15 @@ public class LenderController {
 
 
     @GetMapping("/loan/completed")
+    @Operation(summary = "Get completed loans",
+            description = "Retrieves all completed/fully repaid loans for the lender")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Completed loans retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = LoanDetailsResponse.class))
+            )
+    })
     public ResponseEntity<List<LoanDetailsResponse>> getCompletedLoans() {
         log.info("REST: Fetching completed loan details");
 
@@ -214,7 +406,22 @@ public class LenderController {
 
 
     @GetMapping("/loan/{loanId}")
-    public ResponseEntity<LoanDetailsResponse> getLoanById(@PathVariable Long loanId) {
+    @Operation(summary = "Get loan details by ID",
+            description = "Retrieves detailed information for a specific loan")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Loan details retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = LoanDetailsResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "Loan not found"
+            )
+    })
+    public ResponseEntity<LoanDetailsResponse> getLoanById(
+            @Parameter(description = "Loan ID to retrieve details for")
+            @PathVariable Long loanId) {
         log.info("REST: Fetching loan details for loan ID: {}", loanId);
 
         LoanDetailsResponse loan = loanService.getLoanById(loanId);
