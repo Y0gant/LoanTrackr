@@ -210,7 +210,7 @@ public class LoanService {
                 throw new IllegalStateException("No pending loan applications to withdraw");
             }
 
-            LoanApplication applicationToWithdraw = pendingApplications.getFirst();
+            LoanApplication applicationToWithdraw = pendingApplications.get(0);
             applicationToWithdraw.setStatus(LoanStatus.WITHDRAWN);
             loanApplicationRepository.save(applicationToWithdraw);
 
